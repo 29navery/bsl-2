@@ -1,0 +1,267 @@
+// hello I am the electron script
+const { app, BrowserWindow, ipcMain, Tray, Menu, dialog, shell } = require('electron');
+const fs = require('fs');
+const path = require('path');
+
+// trey & window
+let mainWindow
+let tray = null;
+let isQuitting = false;
+
+const createWindow = () => {
+    mainWindow = new BrowserWindow({
+        width: 1200,
+        height: 800,
+        titleBarStyle: 'hidden',
+        titleBarOverlay: {
+            color: '#1e1e1e',
+            symbolColor: '#ffffff',
+            height: 35
+        },
+        webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: false,
+            sandbox: false
+        }
+    });
+
+    // no more cuss words guys (no more closing)
+    mainWindow.on('close', (event) => {
+        if (!isQuitting) {
+            event.preventDefault();
+            mainWindow.hide();
+        }
+    })
+
+    mainWindow.loadFile('index.html');
+
+    // for the testingz
+    mainWindow.webContents.openDevTools();
+};
+
+app.whenReady().then(() => {
+    createWindow();
+
+    tray = new Tray(path.join(__dirname, 'assets/app-icon.ico'));
+
+    const contextMenu = Menu.buildFromTemplate([
+        {
+            label: 'Library',
+            click: () => {mainWindow.show(); mainWindow.focus(); mainWindow.loadFile('index.html');}
+        },
+        {
+            label: 'Downloads',
+            click: () => {mainWindow.show(); mainWindow.focus(); mainWindow.loadFile('downloads.html');}
+        },
+        {
+            label: 'Settings',
+            click: () => {mainWindow.show(); mainWindow.focus(); mainWindow.loadFile('settings.html');}
+        },
+        { type: 'separator' },
+        {
+            label: 'Quit...',
+            click: () => {
+                isQuitting = true;
+                app.quit();
+            }
+        }
+    ]);
+
+    tray.setToolTip('Big Screen Launcher');
+    tray.setContextMenu(contextMenu);
+
+    tray.on('click', () => {
+        if (mainWindow.isVisible()) mainWindow.hide(); else mainWindow.show();
+    })
+
+    app.on('activate', () => {
+        if (BrowserWindow.getAllWindows().length === 0) {
+            createWindow();
+        }
+    });
+});
+
+app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+        //app.quit();
+    }
+});
+
+// making the shortcuts work
+ipcMain.handle('dialog:open-game-file', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+        title: 'Select Game Executable',
+        properties: ['openFile'],
+        filters: [
+            { name: 'Executables & Shortcuts', extensions: ['exe', 'lnk', 'url'] }
+        ]
+    });
+
+    if (canceled) {
+        return null;
+    } else {
+        return filePaths[0];
+    }
+});
+
+// opening browser links
+ipcMain.handle('open-external-link', async (event, url) => {
+    await shell.openExternal(url);
+});
+
+// app version handler
+let appVersion = '26.0';
+try {
+    const versionPath = path.join(__dirname, 'appversion.txt');
+    appVersion = fs.readFileSync(versionPath, 'utf8').trim();
+} catch (err) {
+    console.log("Could not read local version file:", err);
+}
+
+ipcMain.handle('get-app-version', () => {
+    return appVersion;
+});
+
+// saving userdata
+const gamesFilePath = path.join(app.getPath('userData'), 'games.json');
+
+ipcMain.handle('load-games', () => {
+    try {
+        if (fs.existsSync(gamesFilePath)) {
+            const data = fs.readFileSync(gamesFilePath, 'utf8');
+            return JSON.parse(data);
+        }
+    } catch (err) {
+        console.error("Could not load games file:", err);
+    }
+    return [];
+});
+
+ipcMain.handle('save-games', (event, gamesArray) => {
+    try {
+        fs.writeFileSync(gamesFilePath, JSON.stringify(gamesArray, null, 2), 'utf8');
+        return true;
+    } catch (err) {
+        console.error("Could not save games file:", err);
+        return false;
+    }
+});
+
+const { execFile } = require('child_process');
+
+ipcMain.handle('launch-game-process', async (event, gamePath) => {
+    execFile(gamePath, (error) => {
+        if (error) {
+            console.error('Failed to launch game:', error);
+        }
+    });
+});
+
+// saving settings
+const settingsFilePath = path.join(app.getPath('userData'), 'settings.json');
+
+ipcMain.handle('load-settings', () => {
+    try {
+        if (fs.existsSync(settingsFilePath)) {
+            return JSON.parse(fs.readFileSync(settingsFilePath, 'utf8'));
+        }
+    } catch (err) {
+        console.error("Could not load settings:", err);
+    }
+    return { apiKey: '' };
+});
+
+ipcMain.handle('save-settings', (event, settingsData) => {
+    try {
+        fs.writeFileSync(settingsFilePath, JSON.stringify(settingsData, null, 2), 'utf8');
+        return true;
+    } catch (err) {
+        console.error("Could not save settings:", err);
+        return false;
+    }
+});
+
+// fetching steamgriddb grid art
+const DEFAULT_API_KEY = '9d1906739a2fb8b80908934fa3529734';
+function getApiKey() {
+    const settings = JSON.parse(fs.readFileSync(settingsFilePath, 'utf8'));
+    if (settings.apiKey) return settings.apiKey; else return DEFAULT_API_KEY;
+}
+
+ipcMain.handle('fetch-game-art', async (event, gameName) => {
+    try {
+        if (!fs.existsSync(settingsFilePath)) return null;
+        let apiKey = getApiKey()
+
+        const headers = { 'Authorization': `Bearer ${apiKey}` };
+
+        const searchRes = await fetch(`https://www.steamgriddb.com/api/v2/search/autocomplete/${encodeURIComponent(gameName)}`, { headers });
+        const searchData = await searchRes.json();
+        
+        if (!searchData.success || !searchData.data || searchData.data.length === 0) return null;
+        const gameId = searchData.data[0].id;
+
+        const gridsRes = await fetch(`https://www.steamgriddb.com/api/v2/grids/game/${gameId}?dimensions=600x900,512x512`, { headers });
+        const gridsData = await gridsRes.json();
+
+        if (gridsData.success && gridsData.data && gridsData.data.length > 0) {
+            return gridsData.data[0].url;
+        }
+    } catch (err) {
+        console.error('Error connecting to SteamGridDB:', err);
+    }
+    return null;
+});
+
+// fetching steamgriddb hero art
+ipcMain.handle('fetch-game-hero', async (event, gameName) => {
+    try {
+        if (!fs.existsSync(settingsFilePath)) return null;
+        let apiKey = getApiKey()
+
+        const headers = { 'Authorization': `Bearer ${apiKey}` };
+
+        const searchRes = await fetch(`https://www.steamgriddb.com/api/v2/search/autocomplete/${encodeURIComponent(gameName)}`, { headers });
+        const searchData = await searchRes.json();
+        
+        if (!searchData.success || !searchData.data || searchData.data.length === 0) return null;
+        const gameId = searchData.data[0].id;
+
+        const heroesRes = await fetch(`https://www.steamgriddb.com/api/v2/heroes/game/${gameId}`, { headers });
+        const heroesData = await heroesRes.json();
+
+        if (heroesData.success && heroesData.data && heroesData.data.length > 0) {
+            return heroesData.data[0].url;
+        }
+    } catch (err) {
+        console.error('Error connecting to SteamGridDB for hero art:', err);
+    }
+    return null;
+});
+
+// fetching steamgriddb logo art
+ipcMain.handle('fetch-game-logo', async (event, gameName) => {
+    try {
+        if (!fs.existsSync(settingsFilePath)) return null;
+        let apiKey = getApiKey()
+
+        const headers = { 'Authorization': `Bearer ${apiKey}` };
+
+        const searchRes = await fetch(`https://www.steamgriddb.com/api/v2/search/autocomplete/${encodeURIComponent(gameName)}`, { headers });
+        const searchData = await searchRes.json();
+        
+        if (!searchData.success || !searchData.data || searchData.data.length === 0) return null;
+        const gameId = searchData.data[0].id;
+
+        const logosRes = await fetch(`https://www.steamgriddb.com/api/v2/logos/game/${gameId}`, { headers });
+        const logosData = await logosRes.json();
+
+        if (logosData.success && logosData.data && logosData.data.length > 0) {
+            return logosData.data[0].url;
+        }
+    } catch (err) {
+        console.error('Error connecting to SteamGridDB for logo art:', err);
+    }
+    return null;
+});
+
