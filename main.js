@@ -109,6 +109,11 @@ ipcMain.handle('open-external-link', async (event, url) => {
     await shell.openExternal(url);
 });
 
+// getting data path
+ipcMain.handle('get-user-data-path', () => {
+    return app.getPath('userData');
+});
+
 // app version handler
 let appVersion = '26.0';
 try {

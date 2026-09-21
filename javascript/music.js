@@ -1,11 +1,27 @@
-const { app } = require('electron');
+const { ipcRenderer } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
-const musicFilePath = path.join(app.getPath('userData'), 'music.json');
+let musicFilePath = null;
+
+async function initMusicFile() {
+    const userDataPath = await ipcRenderer.invoke('get-user-data-path');
+    musicFilePath = path.join(userDataPath, 'music.json');
+
+    if (!fs.existsSync(musicFilePath)) {
+        const initialData = { playlists: {}, tracks: [] };
+        fs.writeFileSync(musicFilePath, JSON.stringify(initialData, null, 2), 'utf8');
+    }
+    
+    return JSON.parse(fs.readFileSync(musicFilePath, 'utf8'));
+}
 
 // load
 function loadMusicData() {
+    if (!musicFilePath) {
+        throw new Error("Music file path has not been initialized yet!");
+    }
+    
     if (!fs.existsSync(musicFilePath)) {
         const dir = path.dirname(musicFilePath);
         if (!fs.existsSync(dir)) {
@@ -31,6 +47,7 @@ function saveMusicData(data) {
 
 // make playlists
 function createPlaylist(playlistName) {
+    if (!playlistName) return;
     const data = loadMusicData();
 
     if (!data.playlists[playlistName]) {
@@ -40,42 +57,80 @@ function createPlaylist(playlistName) {
         
         saveMusicData(data);
         console.log(`Playlist "${playlistName}" created successfully!`);
+        renderList();
     } else {
         console.log(`Playlist "${playlistName}" already exists.`);
     }
 }
 
-const appData = loadMusicData();
-console.log('Current playlists loaded:', appData.playlists);
+
+const promptContainer = document.getElementById('name-prompt-cover');
+const promptInputField = document.getElementById('name-input-text-field');
+const promptDoneButton = document.getElementById('name-input-create-button');
+
+function promptForPlaylistName() {
+    return new Promise((resolve) => {
+        promptContainer.style.setProperty('display', 'block');
+        promptInputField.focus();
+
+        promptDoneButton.onclick = () => {
+            // FIXED: Use .value instead of .textContent for input fields
+            const name = promptInputField.value ? promptInputField.value.trim() : '';
+            
+            if (name !== '') {
+                promptContainer.style.setProperty('display', 'none');
+                promptInputField.value = ''; // FIXED: Clear value properly
+                resolve(name);
+            }
+        };
+    });
+}
 
 // render engine
-async function renderGrid() {
-    const musicGrid = document.createElement('div');
-    musicGrid.classList.add('music-grid')
-    document.getElementById('content').appendChild(musicGrid);
-
-    for (let i=1; i < 10; i++) {
-        const newItem = document.createElement('button');
-
-        musicGrid.appendChild(newItem);
-    }
-}
-
 async function renderList() {
+    const contentArea = document.getElementById('content');
+    
+    // Clear old list if it exists to prevent duplication
+    const existingList = contentArea.querySelector('.music-list');
+    if (existingList) existingList.remove();
+
     const musicList = document.createElement('div');
-    musicList.classList.add('music-list')
-    document.getElementById('content').appendChild(musicList);
+    musicList.classList.add('music-list');
+    contentArea.appendChild(musicList);
 
-    for (let i=1; i < 10; i++) {
-        const newItem = document.createElement('button');
+    const data = loadMusicData();
+    const playlistNames = Object.keys(data.playlists);
 
-        musicList.appendChild(newItem);
-        newItem.textContent = 'Playlist Name!'
+    if (playlistNames.length === 0) {
+        const emptyMsg = document.createElement('p');
+        emptyMsg.style.color = '#aaa';
+        emptyMsg.style.textIndent = '25px';
+        emptyMsg.textContent = 'No playlists created yet.';
+        musicList.appendChild(emptyMsg);
+        return;
     }
+
+    playlistNames.forEach(name => {
+        const newItem = document.createElement('button');
+        newItem.classList.add('playlist-item');
+        newItem.textContent = name;
+        musicList.appendChild(newItem);
+    });
 }
 
-renderList();
+// startup
+async function startApp() {
+    await initMusicFile();
+    console.log("Music database initialized!");
+    
+    renderList();
 
-document.getElementById('make-playlist').addEventListener('click', () => {
-    createPlaylist('test-playlist');
-});
+    document.getElementById('make-playlist').addEventListener('click', async () => {
+        const name = await promptForPlaylistName();
+        if (name) {
+            createPlaylist(name);
+        }
+    });
+}
+
+startApp();

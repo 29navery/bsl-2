@@ -8,6 +8,16 @@
         <link rel="stylesheet" href="styles.css">
     </head>
     <body>
+        <!-- name prompt -->
+        <div id="name-prompt-cover" style="display: none;">
+            <div id="name-prompt-window"> 
+                <h2>Enter Playlist Name</h2>
+                <p>Every playlist name needs to be unique.</p> 
+                <input id="name-input-text-field" type="text">
+                <button id="name-input-create-button" class="normal-button">Create</button>
+            </div>
+        </div>
+
         <!-- very cool titlebar -->
         <header>
             <img src="favicon.ico">
@@ -25,7 +35,7 @@
             </nav>
             <div id="content">
                 <h1 style="text-indent:25px;">Music Player</h1>
-                <button id="make-playlist" class="preferable-button">Make playlist</button>
+                <button id="make-playlist" style="margin-left: 25px;" class="preferable-button">Make Playlist</button>
             </div>
         </div>
     </body>
