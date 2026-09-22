@@ -697,3 +697,10 @@ img.grid-item {
 .song-item:hover {
     background-color: var(--playlist-button-color-selected);
 }
+
+#plst-title {
+    color: #aaa;
+    text-indent:25px;
+    display: none;
+    margin-top: 0;
+}
