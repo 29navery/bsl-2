@@ -109,6 +109,28 @@ ipcMain.handle('open-external-link', async (event, url) => {
     await shell.openExternal(url);
 });
 
+// get the documents folderrr
+ipcMain.handle('get-documents-path', () => {
+    return app.getPath('documents');
+});
+
+// file dialog for music
+ipcMain.handle('open-music-dialog', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+        title: 'Select Audio Files',
+        properties: ['openFile', 'multiSelections'],
+        filters: [
+            { name: 'Audio Files', extensions: ['mp3', 'wav', 'ogg', 'flac', 'm4a'] }
+        ]
+    });
+
+    if (canceled) {
+        return [];
+    } else {
+        return filePaths;
+    }
+});
+
 // getting data path
 ipcMain.handle('get-user-data-path', () => {
     return app.getPath('userData');
