@@ -32,6 +32,7 @@
                 <button id="downloads-button"><img class="rail-button-icon" src="svg/download.svg"></button>
                 <button id="settings-button"><img class="rail-button-icon" src="svg/gear.svg"></button>
                 <button id="player-button"><img class="rail-button-icon" src="svg/disc.svg"></button>
+                <img src="svg/vinyl.svg" class="vinyl" style="bottom: 10px; top: auto; position: absolute;">
             </nav>
             <div id="content">
                 <h1 style="text-indent:25px; margin-bottom: 0;">Music Player</h1>
@@ -54,3 +55,33 @@
 
 <script src="javascript/music.js"></script>
 <script src="script.js"></script>
+
+<!-- music notes -->
+<script>
+    function spawnMusicParticle(x, y) {
+        const noteSvgs = [
+            '<img src="svg/note.svg">'
+        ];
+
+        const particle = document.createElement('div');
+        particle.classList.add('music-particle');
+        
+        particle.innerHTML = noteSvgs[Math.floor(Math.random() * noteSvgs.length)];
+        
+        const randomXOffset = (Math.random() - 0.5) * 40;
+        particle.style.left = `${x + randomXOffset}px`;
+        particle.style.top = `${y}px`;
+
+        document.body.appendChild(particle);
+
+        setTimeout(() => {
+            particle.remove();
+        }, 1500);
+    }
+
+    document.addEventListener('click', (e) => {
+        if (e.target.closest('.vinyl') || e.target.closest('#play-button')) {
+            spawnMusicParticle(e.pageX, e.pageY - 30);
+        }
+    });
+</script>
