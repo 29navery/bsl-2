@@ -476,6 +476,35 @@ img.grid-item {
     -webkit-user-drag: none;
 }
 
+.affectors {
+    left: 0;
+    height: 32px;
+    width: 100%;
+    position: absolute;
+    display: flex;
+    justify-content: center;
+    align-content: center;
+    z-index: 9999;
+    top: 5px;
+    gap: 5px;
+}
+
+.affectors img {
+    opacity: 50%;
+}
+
+@keyframes iconBrighten {
+    to {
+        opacity: 100%;
+    }
+}
+
+@keyframes iconDarken {
+    to {
+        opacity: 50%;
+    }
+}
+
   /*           */
  /* SETTINGS  */
 /*           */

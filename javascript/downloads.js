@@ -57,6 +57,7 @@ function muteHexColor(hex, alpha = 0.5) {
             const newItem = document.createElement("button");
             const newText = document.createElement("p");
             const newImg = document.createElement("img");
+            const affectors = document.createElement('div');
 
             const mutedColor = muteHexColor(game.color, 0.4);
             
@@ -66,6 +67,63 @@ function muteHexColor(hex, alpha = 0.5) {
             newItem.style.setProperty("--card-accent-color", mutedColor);
             newItem.appendChild(newText);
             newItem.appendChild(newImg);
+            newItem.appendChild(affectors);
+
+            affectors.classList.add('affectors');
+
+            if (game.controller === true) {
+                const gamepadIcon = document.createElement("img");
+                gamepadIcon.setAttribute('src', 'svg/gamepad.svg');
+                gamepadIcon.style.setProperty('width', '32px');
+                gamepadIcon.style.setProperty('postion', 'absolute');
+
+                affectors.appendChild(gamepadIcon);
+                newItem.addEventListener('mouseenter', () => {
+                    gamepadIcon.animate([
+                        { opacity: 1}
+                    ], {
+                        duration: 200,
+                        easing: 'ease-out',
+                        fill: 'forwards'
+                    });
+                });
+                newItem.addEventListener('mouseleave', () => {
+                    gamepadIcon.animate([
+                        { opacity: 0.5}
+                    ], {
+                        duration: 200,
+                        easing: 'ease-out',
+                        fill: 'forwards'
+                    });
+                });
+            }
+
+            if (game.dlc === true) {
+                const dlcIcon = document.createElement("img");
+                dlcIcon.setAttribute('src', 'svg/dlc.svg');
+                dlcIcon.style.setProperty('width', '32px');
+                dlcIcon.style.setProperty('postion', 'absolute');
+
+                affectors.appendChild(dlcIcon);
+                newItem.addEventListener('mouseenter', () => {
+                    dlcIcon.animate([
+                        { opacity: 1}
+                    ], {
+                        duration: 200,
+                        easing: 'ease-out',
+                        fill: 'forwards'
+                    });
+                });
+                newItem.addEventListener('mouseleave', () => {
+                    dlcIcon.animate([
+                        { opacity: 0.5}
+                    ], {
+                        duration: 200,
+                        easing: 'ease-out',
+                        fill: 'forwards'
+                    });
+                });
+            }
 
             newImg.style.setProperty("position", "absolute");
             newImg.style.setProperty("transform", "translateY(-6px)");
