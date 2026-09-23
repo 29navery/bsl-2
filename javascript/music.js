@@ -41,7 +41,7 @@ function createPlaylist(playlistName) {
     }
 }
 
-// playlsit name prompt
+// playlist name prompt
 const promptContainer = document.getElementById('name-prompt-cover');
 const promptInputField = document.getElementById('name-input-text-field');
 const promptDoneButton = document.getElementById('name-input-create-button');
@@ -69,7 +69,7 @@ function formatDuration(seconds) {
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 }
 
-// Get audio metadata (duration) using a temporary audio element
+// get audio metadata using a temporary audio element
 function getAudioMetadata(filePath) {
     return new Promise((resolve) => {
         const audio = document.createElement('audio');
@@ -83,7 +83,7 @@ function getAudioMetadata(filePath) {
     });
 }
 
-// add to current playlist
+// add to current playlist (with embedded album art extraction)
 async function addSongsToCurrentPlaylist() {
     if (!currentPlaylist) return;
 
@@ -107,24 +107,31 @@ async function addSongsToCurrentPlaylist() {
             fs.copyFileSync(filePath, destinationPath);
         }
 
-        const metadata = await getAudioMetadata(destinationPath);
+        const extractedMeta = await ipcRenderer.invoke('extract-mp3-metadata', destinationPath);
         
-        // Clean up title and artist from filename (e.g., "Artist - Title.mp3")
         const nameWithoutExt = path.parse(fileName).name;
-        let title = nameWithoutExt;
-        let artist = "Unknown Artist";
+        let defaultTitle = nameWithoutExt;
+        let defaultArtist = "Unknown Artist";
 
         if (nameWithoutExt.includes('-')) {
             const parts = nameWithoutExt.split('-');
-            artist = parts[0].trim();
-            title = parts.slice(1).join('-').trim();
+            defaultArtist = parts[0].trim();
+            defaultTitle = parts.slice(1).join('-').trim();
         }
+
+        const title = (extractedMeta && extractedMeta.title) ? extractedMeta.title : defaultTitle;
+        const artist = (extractedMeta && extractedMeta.artist) ? extractedMeta.artist : defaultArtist;
+        const duration = (extractedMeta && extractedMeta.duration) ? extractedMeta.duration : 0;
+        
+        const coverArtUrl = extractedMeta ? extractedMeta.cover : null;
+        const finalCover = (coverArtUrl && coverArtUrl !== 'undefined') ? coverArtUrl : 'images/album-cover-placeholder.jpg';
 
         const songObj = {
             title: title,
             artist: artist,
-            length: formatDuration(metadata.duration),
-            path: destinationPath
+            length: formatDuration(duration),
+            path: destinationPath,
+            cover: finalCover
         };
 
         data.tracks.push(songObj);
@@ -164,7 +171,7 @@ async function renderView() {
         backBtn.classList.add('preferable-button');
         backBtn.style.marginBottom = '15px';
         plstTitle.style.setProperty('display', 'block');
-        plstTitle.textContent = currentPlaylist
+        plstTitle.textContent = currentPlaylist;
         backBtn.textContent = `Return`;
         backBtn.onclick = () => {
             currentPlaylist = null;
@@ -186,7 +193,7 @@ async function renderView() {
             const songItem = document.createElement('div');
             songItem.classList.add('song-item');
             songItem.innerHTML = `
-                <img src="images/album-cover-placeholder.jpg" width="40" height="40" style="border-radius:4px;">
+                <img src="${song.cover}" width="40" height="40" style="border-radius:4px; object-fit: cover;">
                 <div style="flex-grow:1; margin-left:15px;">
                     <p class="song-item-title" style="margin:0; font-weight:bold;">${song.title}</p>
                     <p class="song-item-artist" style="margin:0; color:#aaa; font-size:12px;">${song.artist}</p>
@@ -218,7 +225,7 @@ async function renderView() {
                 currentPlaylist = name;
                 renderView();
             };
-            musicList.musicList ? null : musicList.appendChild(newItem);
+            musicList.appendChild(newItem);
         });
     }
 }

@@ -27,6 +27,7 @@
     "electron@31.7.7": true
   },
   "dependencies": {
-    "@eirslett/shoeset": "^0.0.1"
+    "@eirslett/shoeset": "^0.0.1",
+    "music-metadata": "^11.16.0"
   }
 }

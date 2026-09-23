@@ -333,3 +333,35 @@ ipcMain.handle('remove-game', async (event, index) => {
         return false;
     }
 });
+
+// song metadata
+const { parseFile } = require('music-metadata');
+
+ipcMain.handle('extract-mp3-metadata', async (event, filePath) => {
+    try {
+        const metadata = await parseFile(filePath);
+        const common = metadata.common;
+        
+        let coverUrl = null;
+        if (common.picture && common.picture.length > 0) {
+            const picture = common.picture[0];
+            const base64Data = Buffer.from(picture.data).toString('base64');
+            coverUrl = `data:${picture.format};base64,${base64Data}`;
+        }
+
+        let artistName = common.artist;
+        if (!artistName && common.artists && common.artists.length > 0) {
+            artistName = common.artists.join(', ');
+        }
+
+        return {
+            title: common.title || null,
+            artist: artistName || null,
+            duration: metadata.format.duration || 0,
+            cover: coverUrl
+        };
+    } catch (err) {
+        console.error("Failed to parse MP3 metadata:", err);
+        return null;
+    }
+});
