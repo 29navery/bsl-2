@@ -29,7 +29,7 @@ function saveMusicData(data) {
     fs.writeFileSync(musicFilePath, JSON.stringify(data, null, 2), 'utf8');
 }
 
-// Create Playlist
+// create Playlist
 function createPlaylist(playlistName) {
     if (!playlistName) return;
     const data = loadMusicData();
@@ -62,6 +62,7 @@ function promptForPlaylistName() {
     });
 }
 
+// make duration look nice
 function formatDuration(seconds) {
     if (isNaN(seconds)) return "0:00";
     const mins = Math.floor(seconds / 60);
@@ -69,12 +70,74 @@ function formatDuration(seconds) {
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 }
 
+// context menu
+let activeSongPath = null;
+let activePlaylistName = null;
+const contextMenu = document.getElementById('custom-context-menu');
+const cmMain = document.getElementById('cm-main');
+
+if (!contextMenu) {
+    console.error("ERROR: #custom-context-menu element not found in HTML!");
+}
+
+document.addEventListener('contextmenu', (e) => {
+    const playlistTile = e.target.closest('.playlist-item');
+    const songTile = e.target.closest('.song-item');
+    
+    if (!playlistTile && !songTile) {
+        if (contextMenu) contextMenu.style.display = 'none';
+        activeSongPath = null;
+        activePlaylistName = null;
+        return;
+    }
+
+    e.preventDefault();
+    
+    if (songTile) {
+        activeSongPath = songTile.dataset.songPath;
+        activePlaylistName = null;
+    } else if (playlistTile) {
+        activeSongPath = null;
+        activePlaylistName = playlistTile.textContent.trim();
+    }
+
+    contextMenu.style.top = `${e.pageY}px`;
+    contextMenu.style.left = `${e.pageX}px`;
+    contextMenu.style.display = 'block';
+    if (cmMain) cmMain.style.display = 'block';
+});
+
+document.addEventListener('click', () => {
+    if (contextMenu) contextMenu.style.display = 'none';
+});
+
+document.getElementById('menu-remove').addEventListener('click', () => {
+    const data = loadMusicData();
+
+    if (activeSongPath && currentPlaylist && data.playlists[currentPlaylist]) {
+        data.playlists[currentPlaylist].songs = data.playlists[currentPlaylist].songs.filter(
+            s => s.path !== activeSongPath
+        );
+        saveMusicData(data);
+    } 
+    else if (activePlaylistName && data.playlists[activePlaylistName]) {
+        delete data.playlists[activePlaylistName];
+        saveMusicData(data);
+    }
+
+    if (contextMenu) contextMenu.style.display = 'none';
+    activeSongPath = null;
+    activePlaylistName = null;
+
+    renderView();
+});
+
 // make the funky name
 function sanitizeFolder(name) {
     return name ? name.replace(/[<>:"/\\|?*]/g, '_').trim() : null;
 }
 
-// get audio metadata using a temporary audio element
+// get audio metadata
 function getAudioMetadata(filePath) {
     return new Promise((resolve) => {
         const audio = document.createElement('audio');
@@ -88,7 +151,7 @@ function getAudioMetadata(filePath) {
     });
 }
 
-// add to current playlist (with embedded album art extraction)
+// add to current playlist
 async function addSongsToCurrentPlaylist() {
     if (!currentPlaylist) return;
 
@@ -176,6 +239,7 @@ async function addSongsToCurrentPlaylist() {
     renderView();
 }
 
+// big boy render daddy
 async function renderView() {
     const plstTitle = document.getElementById('plst-title');
     const contentArea = document.getElementById('content');
@@ -223,10 +287,8 @@ async function renderView() {
             return;
         }
 
-        songs.forEach(song => {
+        songs.forEach((song, index) => {
             const songItem = document.createElement('div');
-            const trashContainer = document.createElement('div');
-            const trashButton = document.createElement('img');
             songItem.classList.add('song-item');
             songItem.innerHTML = `
                 <img src="${song.cover}" width="40" height="40" style="border-radius:4px; object-fit: cover;">
@@ -236,35 +298,11 @@ async function renderView() {
                 </div>
                 <span class="song-item-length" style="color:#888; font-size:13px;">${song.length}</span>
             `;
-            trashButton.setAttribute('src', 'svg/trash.svg');
-            trashButton.style.setProperty('height', '50%');
-            trashContainer.classList.add('trashContainer');
+
+            songItem.dataset.songIndex = index; 
+            songItem.dataset.songPath = song.path;
 
             musicList.appendChild(songItem);
-            songItem.appendChild(trashContainer);
-            trashContainer.appendChild(trashButton);
-
-            songItem.addEventListener('mouseenter', () => {
-                trashContainer.style.setProperty('display', 'flex');
-            });
-
-            songItem.addEventListener('mouseleave', () => {
-                trashContainer.style.setProperty('display', 'none');
-            });
-
-            trashContainer.addEventListener('click', (event) => {
-                event.stopPropagation();
-
-                const data = loadMusicData();
-                if (!currentPlaylist || !data.playlists[currentPlaylist]) return;
-
-                data.playlists[currentPlaylist].songs = data.playlists[currentPlaylist].songs.filter(
-                    s => s.path !== song.path
-                );
-
-                saveMusicData(data);
-                renderView();
-            });
         });
 
     } 
@@ -294,7 +332,7 @@ async function renderView() {
     }
 }
 
-// Startup
+// startup
 async function startApp() {
     await initMusicFile();
     console.log("Music database initialized!");

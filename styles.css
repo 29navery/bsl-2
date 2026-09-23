@@ -637,6 +637,58 @@ img.grid-item {
     color: #787981;
 }
 
+  /*                    */
+ /*  DELETION PROMPT   */
+/*                    */
+
+#deletion-prompt-cover {
+    width: 100vw;
+    height: 100vh;
+    position: absolute;
+    background-color: #0005;
+    z-index: 99999;
+    overflow: hidden;
+    display: flex;
+    align-content: center;
+    justify-content: center;
+    align-items: center;
+    justify-items: center;
+}
+
+#deletion-prompt-window {
+    display: flex;
+    flex-direction: column;
+    align-content: center;
+    justify-content: center;
+    align-items: center;
+    justify-items: center;
+
+    width: 450px;
+    height: 205px;
+    background-color: var(--rail-button-color);
+    border-radius: 10px;
+    border: 1.65px solid var(--rail-button-outline-color);
+}
+
+#deletion-prompt-window input {
+    width: 70%;
+    background-color: var(--rail-color);
+    border-radius: 5px;
+    border: 0;
+    color: #fff;
+    padding: 5px 10px;
+    margin-bottom: 5px;
+}
+
+#deletion-prompt-window h2 {
+    margin: 0;
+}
+
+#deletion-prompt-window p {
+    margin-top: 0;
+    color: #787981;
+}
+
   /*                */
  /*     MUSIC      */
 /*                */
