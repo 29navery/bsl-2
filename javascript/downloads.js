@@ -125,6 +125,33 @@ function muteHexColor(hex, alpha = 0.5) {
                 });
             }
 
+            if (game.lag === true) {
+                const lagIcon = document.createElement("img");
+                lagIcon.setAttribute('src', 'svg/lag.svg');
+                lagIcon.style.setProperty('width', '32px');
+                lagIcon.style.setProperty('postion', 'absolute');
+
+                affectors.appendChild(lagIcon);
+                newItem.addEventListener('mouseenter', () => {
+                    lagIcon.animate([
+                        { opacity: 1}
+                    ], {
+                        duration: 200,
+                        easing: 'ease-out',
+                        fill: 'forwards'
+                    });
+                });
+                newItem.addEventListener('mouseleave', () => {
+                    lagIcon.animate([
+                        { opacity: 0.5}
+                    ], {
+                        duration: 200,
+                        easing: 'ease-out',
+                        fill: 'forwards'
+                    });
+                });
+            }
+
             newImg.style.setProperty("position", "absolute");
             newImg.style.setProperty("transform", "translateY(-6px)");
             newImg.setAttribute("src", `https://tungstenball.org${game.image}`);
@@ -143,6 +170,13 @@ function muteHexColor(hex, alpha = 0.5) {
 
 const refreshButton = document.getElementById('refresh-button');
 
-refreshButton.addEventListener("click", function() {
-    
-});
+if (refreshButton) {
+    refreshButton.addEventListener('click', async () => {
+        localStorage.removeItem('tungsten_games_cache');
+        const success = await ipcRenderer.invoke('clear-games-cache');
+        
+        if (success) {
+            window.location.reload();
+        }
+    });
+}

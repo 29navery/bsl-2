@@ -148,7 +148,7 @@ document.getElementById('menu-artwork-grid').addEventListener('click', () => upd
 document.getElementById('menu-artwork-logo').addEventListener('click', () => updateGameArtwork('fetch-game-logo', 'logo'));
 document.getElementById('menu-artwork-hero').addEventListener('click', () => updateGameArtwork('fetch-game-hero', 'hero'));
 document.getElementById('menu-artwork-all').addEventListener('click', () => {
-    updateGameArtwork('fetch-game-grid', 'grid');
+    updateGameArtwork('fetch-game-art', 'grid');
     updateGameArtwork('fetch-game-logo', 'logo');
     updateGameArtwork('fetch-game-hero', 'hero');
 });

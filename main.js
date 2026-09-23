@@ -1,5 +1,5 @@
 // hello I am the electron script
-const { app, BrowserWindow, ipcMain, Tray, Menu, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, dialog, shell, session } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
@@ -150,7 +150,7 @@ ipcMain.handle('get-app-version', () => {
 });
 
 // saving userdata
-const gamesFilePath = path.join(app.getPath('userData'), 'games.json');
+const gamesFilePath = path.join(app.getPath('userData'), 'library.json');
 
 ipcMain.handle('load-games', () => {
     try {
@@ -292,3 +292,19 @@ ipcMain.handle('fetch-game-logo', async (event, gameName) => {
     return null;
 });
 
+// clear the games.json cache
+ipcMain.handle('clear-games-cache', async () => {
+    try {
+
+        await session.defaultSession.clearCache();
+        await session.defaultSession.clearStorageData({
+            storages: ['shadercache', 'serviceworkers', 'indexdb']
+        });
+        console.log('Browser cache cleared successfully.');
+
+        return true;
+    } catch (err) {
+        console.error("Failed to clear caches:", err);
+        return false;
+    }
+});
