@@ -69,6 +69,11 @@ function formatDuration(seconds) {
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 }
 
+// make the funky name
+function sanitizeFolder(name) {
+    return name ? name.replace(/[<>:"/\\|?*]/g, '_').trim() : null;
+}
+
 // get audio metadata using a temporary audio element
 function getAudioMetadata(filePath) {
     return new Promise((resolve) => {
@@ -91,27 +96,23 @@ async function addSongsToCurrentPlaylist() {
     if (!filePaths || filePaths.length === 0) return;
 
     const docsPath = await ipcRenderer.invoke('get-documents-path');
-    const targetDir = path.join(docsPath, 'Big Screen Launcher', 'Music');
+    const rootMusicDir = path.join(docsPath, 'Big Screen Launcher', 'Music');
 
-    if (!fs.existsSync(targetDir)) {
-        fs.mkdirSync(targetDir, { recursive: true });
+    if (!fs.existsSync(rootMusicDir)) {
+        fs.mkdirSync(rootMusicDir, { recursive: true });
     }
 
     const data = loadMusicData();
 
     for (const filePath of filePaths) {
-        const fileName = path.basename(filePath);
-        const destinationPath = path.join(targetDir, fileName);
-
-        if (!fs.existsSync(destinationPath)) {
-            fs.copyFileSync(filePath, destinationPath);
-        }
-
-        const extractedMeta = await ipcRenderer.invoke('extract-mp3-metadata', destinationPath);
+        const extractedMeta = await ipcRenderer.invoke('extract-mp3-metadata', filePath);
         
+        const fileName = path.basename(filePath);
         const nameWithoutExt = path.parse(fileName).name;
+
         let defaultTitle = nameWithoutExt;
         let defaultArtist = "Unknown Artist";
+        let defaultAlbum = null;
 
         if (nameWithoutExt.includes('-')) {
             const parts = nameWithoutExt.split('-');
@@ -121,21 +122,54 @@ async function addSongsToCurrentPlaylist() {
 
         const title = (extractedMeta && extractedMeta.title) ? extractedMeta.title : defaultTitle;
         const artist = (extractedMeta && extractedMeta.artist) ? extractedMeta.artist : defaultArtist;
+        const album = (extractedMeta && extractedMeta.album) ? extractedMeta.album : defaultAlbum;
         const duration = (extractedMeta && extractedMeta.duration) ? extractedMeta.duration : 0;
         
         const coverArtUrl = extractedMeta ? extractedMeta.cover : null;
         const finalCover = (coverArtUrl && coverArtUrl !== 'undefined') ? coverArtUrl : 'images/album-cover-placeholder.jpg';
 
+        let targetDir = rootMusicDir;
+        const sanitizedArtist = sanitizeFolder(artist);
+        const sanitizedAlbum = sanitizeFolder(album);
+
+        if (sanitizedArtist) {
+            targetDir = path.join(targetDir, sanitizedArtist);
+            if (sanitizedAlbum) {
+                targetDir = path.join(targetDir, sanitizedAlbum);
+            }
+        }
+
+        if (!fs.existsSync(targetDir)) {
+            fs.mkdirSync(targetDir, { recursive: true });
+        }
+
+        const destinationPath = path.join(targetDir, fileName);
+
+        if (!fs.existsSync(destinationPath)) {
+            fs.copyFileSync(filePath, destinationPath);
+        }
+
         const songObj = {
             title: title,
             artist: artist,
+            album: album || 'Unknown Album',
             length: formatDuration(duration),
             path: destinationPath,
             cover: finalCover
         };
 
-        data.tracks.push(songObj);
-        data.playlists[currentPlaylist].songs.push(songObj);
+        let existingMasterTrack = data.tracks.find(t => t.path === destinationPath);
+        if (!existingMasterTrack) {
+            data.tracks.push(songObj);
+            existingMasterTrack = songObj;
+        }
+
+        const playlistSongs = data.playlists[currentPlaylist].songs;
+        const alreadyInPlaylist = playlistSongs.some(t => t.path === destinationPath);
+
+        if (!alreadyInPlaylist) {
+            playlistSongs.push(existingMasterTrack);
+        }
     }
 
     saveMusicData(data);
