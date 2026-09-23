@@ -150,7 +150,13 @@ ipcMain.handle('get-app-version', () => {
 });
 
 // saving userdata
-const gamesFilePath = path.join(app.getPath('userData'), 'library.json');
+const gamesDir = path.join(app.getPath('documents'), 'Big Screen Launcher', 'Games');
+
+if (!fs.existsSync(gamesDir)) {
+    fs.mkdirSync(gamesDir, { recursive: true });
+}
+
+const gamesFilePath = path.join(gamesDir, '.games.json');
 
 ipcMain.handle('load-games', () => {
     try {
@@ -305,6 +311,25 @@ ipcMain.handle('clear-games-cache', async () => {
         return true;
     } catch (err) {
         console.error("Failed to clear caches:", err);
+        return false;
+    }
+});
+
+// remove games from library
+ipcMain.handle('remove-game', async (event, index) => {
+    try {
+        let savedGames = [];
+        if (fs.existsSync(gamesFilePath)) {
+            savedGames = JSON.parse(fs.readFileSync(gamesFilePath, 'utf8'));
+        }
+        
+        // Remove the game at the selected index
+        savedGames.splice(index, 1);
+        
+        fs.writeFileSync(gamesFilePath, JSON.stringify(savedGames, null, 2), 'utf8');
+        return true;
+    } catch (err) {
+        console.error("Could not remove game:", err);
         return false;
     }
 });

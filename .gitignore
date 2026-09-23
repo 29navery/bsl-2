@@ -2,3 +2,4 @@
 /powershell
 /dist
 package-lock.json
+/.vscode

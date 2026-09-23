@@ -91,6 +91,8 @@ document.addEventListener('contextmenu', (e) => {
     contextMenu.style.top = `${e.pageY}px`;
     contextMenu.style.left = `${e.pageX}px`;
     contextMenu.style.display = 'block';
+    cmMain.style.display = 'block';
+    cmReplaceArtwork.style.display = 'none';
 });
 
 document.addEventListener('click', (e) => {
@@ -117,7 +119,16 @@ document.getElementById('menu-artwork').addEventListener('click', async () => {
 
 document.getElementById('menu-remove').addEventListener('click', async () => {
     if (activeTileIndex !== null) {
+        const success = await ipcRenderer.invoke('remove-game', activeTileIndex);
+        
+        if (success) {
+            console.log(`Game at index ${activeTileIndex} removed successfully.`);
+        }
+        
         contextMenu.style.display = 'none';
+        activeTileIndex = null;
+        
+        renderGamesGrid();
     }
 });
 
