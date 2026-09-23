@@ -47,7 +47,12 @@ addGameButton.addEventListener('click', async () => {
     if (!filePath) return;
 
     const fileName = filePath.split('\\').pop().split('/').pop();
-    const gameName = fileName.substring(0, fileName.lastIndexOf('.')) || fileName;
+    const defaultName = fileName.substring(0, fileName.lastIndexOf('.')) || fileName;
+
+    promptInputField.value = defaultName;
+    const gameName = await promptForGameName();
+    
+    if (!gameName) return;
 
     console.log(`Searching SteamGridDB for art: ${gameName}...`);
     
@@ -65,6 +70,27 @@ addGameButton.addEventListener('click', async () => {
 
     renderGamesGrid();
 });
+
+// name prompt
+const promptContainer = document.getElementById('name-prompt-cover');
+const promptInputField = document.getElementById('name-input-text-field');
+const promptDoneButton = document.getElementById('name-input-create-button');
+
+function promptForGameName() {
+    return new Promise((resolve) => {
+        promptContainer.style.setProperty('display', 'block');
+        promptInputField.focus();
+
+        promptDoneButton.onclick = () => {
+            const name = promptInputField.value ? promptInputField.value.trim() : '';
+            if (name !== '') {
+                promptContainer.style.setProperty('display', 'none');
+                promptInputField.value = '';
+                resolve(name);
+            }
+        };
+    });
+}
 
 // context menu
 let activeTileIndex = null;
