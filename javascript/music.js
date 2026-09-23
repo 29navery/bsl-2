@@ -225,6 +225,8 @@ async function renderView() {
 
         songs.forEach(song => {
             const songItem = document.createElement('div');
+            const trashContainer = document.createElement('div');
+            const trashButton = document.createElement('img');
             songItem.classList.add('song-item');
             songItem.innerHTML = `
                 <img src="${song.cover}" width="40" height="40" style="border-radius:4px; object-fit: cover;">
@@ -234,7 +236,35 @@ async function renderView() {
                 </div>
                 <span class="song-item-length" style="color:#888; font-size:13px;">${song.length}</span>
             `;
+            trashButton.setAttribute('src', 'svg/trash.svg');
+            trashButton.style.setProperty('height', '50%');
+            trashContainer.classList.add('trashContainer');
+
             musicList.appendChild(songItem);
+            songItem.appendChild(trashContainer);
+            trashContainer.appendChild(trashButton);
+
+            songItem.addEventListener('mouseenter', () => {
+                trashContainer.style.setProperty('display', 'flex');
+            });
+
+            songItem.addEventListener('mouseleave', () => {
+                trashContainer.style.setProperty('display', 'none');
+            });
+
+            trashContainer.addEventListener('click', (event) => {
+                event.stopPropagation();
+
+                const data = loadMusicData();
+                if (!currentPlaylist || !data.playlists[currentPlaylist]) return;
+
+                data.playlists[currentPlaylist].songs = data.playlists[currentPlaylist].songs.filter(
+                    s => s.path !== song.path
+                );
+
+                saveMusicData(data);
+                renderView();
+            });
         });
 
     } 

@@ -780,3 +780,23 @@ img.grid-item {
     animation-timing-function: linear;
     animation-iteration-count: infinite;
 }
+
+/* trash button */
+
+.trashContainer {
+    margin-right: 8px;
+    height: 48px;
+    width: 48px;
+    display: none;
+    border-radius: 100%;
+    background-color: #9995;
+    justify-content: center;
+    justify-items: center;
+    align-content: center;
+    justify-items: center;
+}
+
+.trashContainer img {
+    margin: auto;
+    pointer-events: none;
+}
