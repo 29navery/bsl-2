@@ -38,7 +38,7 @@ const createWindow = () => {
     mainWindow.loadFile('index.html');
 
     // for the testingz
-    mainWindow.webContents.openDevTools();
+    // mainWindow.webContents.openDevTools();
 };
 
 app.whenReady().then(() => {

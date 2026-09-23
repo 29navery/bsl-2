@@ -42,11 +42,11 @@ function createPlaylist(playlistName) {
 }
 
 // playlist name prompt
-const promptContainer = document.getElementById('name-prompt-cover');
-const promptInputField = document.getElementById('name-input-text-field');
-const promptDoneButton = document.getElementById('name-input-create-button');
-
 function promptForPlaylistName() {
+    const promptContainer = document.getElementById('name-prompt-cover');
+    const promptInputField = document.getElementById('name-input-text-field');
+    const promptDoneButton = document.getElementById('name-input-create-button');
+
     return new Promise((resolve) => {
         promptContainer.style.setProperty('display', 'block');
         promptInputField.focus();
@@ -58,6 +58,28 @@ function promptForPlaylistName() {
                 promptInputField.value = '';
                 resolve(name);
             }
+        };
+    });
+}
+
+// delete prompt
+function promptForDeletion(deletee) {
+    const promptContainer = document.getElementById('deletion-prompt-cover');
+    const yesButton = document.getElementById('deletion-prompt-yes');
+    const noButton = document.getElementById('deletion-prompt-no');
+    const promptText = document.getElementById('deletion-prompt-text');
+
+    return new Promise((resolve) => {
+        promptContainer.style.setProperty('display', 'block');
+        promptText.textContent = 'Deleting ' + deletee + ' cannot be undone'
+
+        yesButton.onclick = () => {
+            promptContainer.style.setProperty('display', 'none');
+            resolve(true);
+        };
+        noButton.onclick = () => {
+            promptContainer.style.setProperty('display', 'none');
+            resolve(false);
         };
     });
 }
@@ -111,7 +133,15 @@ document.addEventListener('click', () => {
     if (contextMenu) contextMenu.style.display = 'none';
 });
 
-document.getElementById('menu-remove').addEventListener('click', () => {
+document.getElementById('menu-remove').addEventListener('click', async () => {
+    let confirmed = true;
+
+    if (activePlaylistName) {
+        confirmed = await promptForDeletion(activePlaylistName);
+    }
+
+    if (!confirmed) return;
+
     const data = loadMusicData();
 
     if (activeSongPath && currentPlaylist && data.playlists[currentPlaylist]) {
@@ -119,8 +149,7 @@ document.getElementById('menu-remove').addEventListener('click', () => {
             s => s.path !== activeSongPath
         );
         saveMusicData(data);
-    } 
-    else if (activePlaylistName && data.playlists[activePlaylistName]) {
+    } else if (activePlaylistName && data.playlists[activePlaylistName]) {
         delete data.playlists[activePlaylistName];
         saveMusicData(data);
     }

@@ -12,7 +12,9 @@
         <div id="custom-context-menu" class="context-menu" style="display: none;">
             <ul id="cm-main">
                 <style>
-                    #menu-remove:hover {color: #fff;}
+                    #menu-remove:hover {
+                        color: #fff;
+                    }
                 </style>
                 <li id="menu-remove" style="color: rgb(202, 64, 64);">Remove</li>
             </ul>
@@ -21,7 +23,7 @@
         <div id="deletion-prompt-cover" style="display: none;">
             <div id="deletion-prompt-window"> 
                 <h2>Are you sure?</h2>
-                <p>Deleting . . . cannot be undone.</p> 
+                <p id="deletion-prompt-text">Deleting . . . cannot be undone.</p> 
                 <div style="display: flex; flex-direction: row; gap: 10px;">
                     <button id="deletion-prompt-no" class="normal-button">nah, nevermind</button>
                     <button id="deletion-prompt-yes" class="preferable-button">yeah, it sucked anyway</button>
