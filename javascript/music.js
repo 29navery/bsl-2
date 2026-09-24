@@ -4,6 +4,7 @@ const path = require('path');
 let musicFilePath = null;
 let currentPlaylist = null;
 
+// start dat shyt
 async function initMusicFile() {
     const userDataPath = await ipcRenderer.invoke('get-user-data-path');
     musicFilePath = path.join(userDataPath, 'music.json');
@@ -16,6 +17,7 @@ async function initMusicFile() {
     return JSON.parse(fs.readFileSync(musicFilePath, 'utf8'));
 }
 
+// load ya musica
 function loadMusicData() {
     if (!musicFilePath) {
         throw new Error("Music file path has not been initialized yet!");
@@ -24,6 +26,7 @@ function loadMusicData() {
     return JSON.parse(fileContent);
 }
 
+// save ya musica
 function saveMusicData(data) {
     fs.writeFileSync(musicFilePath, JSON.stringify(data, null, 2), 'utf8');
 }
@@ -41,13 +44,15 @@ function createPlaylist(playlistName) {
 }
 
 // playlist name prompt
-function promptForPlaylistName() {
+function promptForPlaylistName(initialValue = '', buttonText = 'Create') {
     const promptContainer = document.getElementById('name-prompt-cover');
     const promptInputField = document.getElementById('name-input-text-field');
     const promptDoneButton = document.getElementById('name-input-create-button');
+    promptDoneButton.textContent = buttonText;
 
     return new Promise((resolve) => {
         promptContainer.style.setProperty('display', 'block');
+        promptInputField.value = initialValue;
         promptInputField.focus();
 
         promptDoneButton.onclick = () => {
@@ -118,9 +123,11 @@ let activeSongPath = null;
 let activePlaylistName = null;
 const contextMenu = document.getElementById('custom-context-menu');
 const cmMain = document.getElementById('cm-main');
+const menuRenameBtn = document.getElementById('menu-rename');
+const menuRemoveBtn = document.getElementById('menu-remove');
 
 if (!contextMenu) {
-    console.error("ERROR: #custom-context-menu element not found in HTML!");
+    console.error("ERROR: no context menu in da music!!!1!");
 }
 
 document.addEventListener('contextmenu', (e) => {
@@ -139,9 +146,11 @@ document.addEventListener('contextmenu', (e) => {
     if (songTile) {
         activeSongPath = songTile.dataset.songPath;
         activePlaylistName = null;
+        if (menuRenameBtn) menuRenameBtn.style.display = 'none';
     } else if (playlistTile) {
         activeSongPath = null;
         activePlaylistName = playlistTile.textContent.trim();
+        if (menuRenameBtn) menuRenameBtn.style.display = 'block';
     }
 
     contextMenu.style.top = `${e.pageY}px`;
@@ -154,7 +163,42 @@ document.addEventListener('click', () => {
     if (contextMenu) contextMenu.style.display = 'none';
 });
 
-const menuRemoveBtn = document.getElementById('menu-remove');
+// rename playlist handler
+if (menuRenameBtn) {
+    menuRenameBtn.addEventListener('click', async () => {
+        const oldName = activePlaylistName;
+        if (!oldName) return;
+
+        if (contextMenu) contextMenu.style.display = 'none';
+
+        const newName = await promptForPlaylistName(oldName, 'Save');
+        if (!newName || newName === oldName) return;
+
+        const data = loadMusicData();
+
+        if (data.playlists[oldName]) {
+            if (data.playlists[newName]) {
+                alert(`A playlist named "${newName}" already exists.`);
+                return;
+            }
+
+            data.playlists[newName] = data.playlists[oldName];
+            delete data.playlists[oldName];
+
+            if (currentPlaylist === oldName) {
+                currentPlaylist = newName;
+            }
+
+            saveMusicData(data);
+            renderView();
+        }
+
+        activeSongPath = null;
+        activePlaylistName = null;
+    });
+}
+
+// songs and playlist go bai bai dynamically
 if (menuRemoveBtn) {
     menuRemoveBtn.addEventListener('click', async () => {
         let confirmed = true;
@@ -379,6 +423,7 @@ async function renderView() {
 // startup
 async function startApp() {
     await initMusicFile();
+    console.log("Music database initialized!");
     
     renderView();
 

@@ -12,11 +12,15 @@
         <div id="custom-context-menu" class="context-menu" style="display: none;">
             <ul id="cm-main">
                 <style>
+                    #menu-remove {
+                        color: rgb(202, 64, 64);
+                    }
                     #menu-remove:hover {
                         color: #fff;
                     }
                 </style>
-                <li id="menu-remove" style="color: rgb(202, 64, 64);">Remove</li>
+                <li id="menu-rename" style="display: none;">Rename</li>
+                <li id="menu-remove">Remove</li>
             </ul>
         </div>
 
@@ -92,6 +96,10 @@
                             <p class="song-item-artist">Artist</p>
                         </div>
                     </div>
+                </div>
+                <!-- Footer -->
+                <div style="position: absolute; bottom: 0;">
+                    <p>If you don't have your favorite music files then use <a id="external-link" href="https://spotisaver.net">https://spotisaver.net</a></p>
                 </div>
             </div>
         </div>

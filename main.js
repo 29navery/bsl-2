@@ -91,6 +91,10 @@ app.whenReady().then(() => {
             label: 'Settings',
             click: () => { mainWindow.show(); mainWindow.focus(); mainWindow.loadFile('settings.html'); }
         },
+        {
+            label: 'Music',
+            click: () => { mainWindow.show(); mainWindow.focus(); mainWindow.loadFile('music.html'); }
+        },
         { type: 'separator' },
         {
             label: 'Quit...',
