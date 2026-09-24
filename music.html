@@ -58,8 +58,23 @@
                 <img src="svg/vinyl.svg" class="vinyl" style="bottom: 10px; top: auto; position: absolute;">
             </nav>
             <div id="content">
-                <h1 style="text-indent:25px; margin-bottom: 0;">Music Player</h1>
-                <h3 id="plst-title">Playlist Title</h3>
+                <!-- header -->
+                <div style="display: flex; flex-direction: row; justify-content: space-between;">
+                    <!-- text -->
+                    <div>
+                        <h1 style="text-indent:25px; margin-bottom: 0;">Music Player</h1>
+                        <h3 id="plst-title">Playlist Title</h3>
+                    </div>
+                    <div style="margin-top: 25px; justify-content: right; justify-items: right;">
+                        <h2 id="miniplayer-title" style="font-weight: 400; margin-bottom: 2px;">Song Title</h2>
+                        <p id="miniplayer-artist" style="font-weight: 300; margin-top: 0; color: #aaa;">Song Artist</p>
+                        <p id="miniplayer-time" style="color: #aaa;">0:00 / 3:30</p>
+
+                        <div id="miniplayer-img-container">
+                            <img id="miniplayer-img" src="images/album-cover-placeholder.jpg">
+                        </div>
+                    </div>
+                </div>
                 <button id="make-playlist" style="margin-left: 25px;" class="preferable-button">Make Playlist</button>
                 <button id="add-songs" style="display: none; margin-left: 25px;" class="preferable-button">Add Songs</button>
                 <div class="music-list">

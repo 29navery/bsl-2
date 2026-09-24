@@ -29,7 +29,7 @@ function saveMusicData(data) {
     fs.writeFileSync(musicFilePath, JSON.stringify(data, null, 2), 'utf8');
 }
 
-// create Playlist
+// create playlist
 function createPlaylist(playlistName) {
     if (!playlistName) return;
     const data = loadMusicData();
@@ -90,6 +90,31 @@ function formatDuration(seconds) {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+}
+
+// play da music
+let currentAudio = null;
+
+function playSong(song) {
+    if (currentAudio) {
+        currentAudio.pause();
+    }
+
+    currentAudio = new Audio(song.path);
+    
+    const timeDisplay = document.getElementById('current-time');
+    
+    currentAudio.addEventListener('timeupdate', () => {
+        if (timeDisplay) {
+            timeDisplay.textContent = formatDuration(currentAudio.currentTime);
+        }
+    });
+
+    currentAudio.play();
+
+    document.getElementById('miniplayer-title').textContent = song.title;
+    document.getElementById('miniplayer-artist').textContent = song.artist;
+    document.getElementById('miniplayer-img').src = song.cover;
 }
 
 // context menu
@@ -332,6 +357,9 @@ async function renderView() {
             songItem.dataset.songPath = song.path;
 
             musicList.appendChild(songItem);
+            songItem.addEventListener('click', () => {
+                playSong(song);
+            });
         });
 
     } 
