@@ -1,11 +1,5 @@
 const { ipcRenderer } = require('electron')
 
-// link
-document.getElementById('external-link').addEventListener('click', function(e) {
-    e.preventDefault();
-    ipcRenderer.invoke('open-external-link','https://forms.gle/BbEYQQ4ysCWzz9B97');
-});
-
 // rail stuff
 document.addEventListener('click', (e) => {
     const libraryBtn = e.target.closest('#library-button');
