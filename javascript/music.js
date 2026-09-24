@@ -92,13 +92,15 @@ function formatDuration(seconds) {
 }
 
 // to da background music
-function playSong(filePath, title, artist, cover) {
+function playSong(filePath, title, artist, cover, playlistQueue, songIndex) {
     ipcRenderer.send('send-audio-command', {
         action: 'play',
         trackUrl: filePath,
         title: title || 'Unknown Song',
         artist: artist || 'Unknown Artist',
-        cover: cover || 'images/album-cover-placeholder.jpg'
+        cover: cover || 'images/album-cover-placeholder.jpg',
+        queue: playlistQueue,
+        index: songIndex
     });
 
     const imgDisplay = document.getElementById('miniplayer-img');
@@ -344,7 +346,7 @@ async function renderView() {
             musicList.appendChild(songItem);
             
             songItem.addEventListener('click', () => {
-                playSong(song.path, song.title, song.artist, song.cover);
+                playSong(song.path, song.title, song.artist, song.cover, songs, index);
             });
         });
 
@@ -377,7 +379,6 @@ async function renderView() {
 // startup
 async function startApp() {
     await initMusicFile();
-    console.log("Music database initialized!");
     
     renderView();
 

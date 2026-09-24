@@ -11,6 +11,20 @@ document.addEventListener('click', (e) => {
     if (downloadsBtn) window.location.href = 'downloads.html';
     if (settingsBtn) window.location.href = 'settings.html';
     if (playerBtn) window.location.href = 'music.html';
+
+    const prevBtn = e.target.closest('#sngctrl-prev');
+    const playPauseBtn = e.target.closest('#sngctrl-play-pause');
+    const nextBtn = e.target.closest('#sngctrl-next');
+
+    if (prevBtn) {
+        ipcRenderer.send('send-audio-command', { action: 'prev' });
+    }
+    if (playPauseBtn) {
+        ipcRenderer.send('send-audio-command', { action: 'toggle' });
+    }
+    if (nextBtn) {
+        ipcRenderer.send('send-audio-command', { action: 'next' });
+    }
 });
 
 // mini player shii
@@ -19,6 +33,7 @@ ipcRenderer.on('receive-audio-status', (event, data) => {
     const titleDisplay = document.getElementById('miniplayer-title');
     const artistDisplay = document.getElementById('miniplayer-artist');
     const imgDisplay = document.getElementById('miniplayer-img');
+    const playPauseBtn = document.getElementById('sngctrl-play-pause');
 
     if (titleDisplay && data.title) {
         titleDisplay.innerText = data.title;
@@ -30,6 +45,10 @@ ipcRenderer.on('receive-audio-status', (event, data) => {
 
     if (imgDisplay && data.cover) {
         imgDisplay.src = data.cover;
+    }
+
+    if (playPauseBtn && data.isPlaying !== undefined) {
+        playPauseBtn.src = data.isPlaying ? 'svg/music/play-pause.svg' : 'svg/music/play.svg';
     }
 
     if (timeDisplay && data.currentTime !== undefined) {

@@ -700,8 +700,8 @@ img.grid-item {
     gap: 5px;
     max-width: 650px;
     justify-self: center;
-    margin-left: auto;
-    margin-right: auto;
+    margin-left: 0;
+    margin-right: 0;
 }
 
 /* da funky playlist */
@@ -794,6 +794,22 @@ img.grid-item {
     text-indent:25px;
     display: none;
     margin-top: 0;
+}
+
+#song-controls {
+    height: 36px;
+}
+
+#song-controls img {
+    height: 100%;
+    filter: invert();
+    cursor: pointer;
+    transition: all 200ms;
+}
+
+#song-controls img:hover {
+    transform: scale(1.1);
+    filter: invert(80%);
 }
 
   /*                       */

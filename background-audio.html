@@ -6,12 +6,15 @@
         const { ipcRenderer } = require('electron');
         
         const player = new Audio();
+        let queue = [];
+        let currentIndex = -1;
         let currentMetadata = {
             title: 'Song Title',
             artist: 'Song Artist',
             cover: 'images/album-cover-placeholder.jpg'
         };
 
+        // Convert full system file paths to proper file:/// URIs, leaving relative/data URIs intact
         function formatUri(filePath) {
             if (!filePath) return '';
             if (filePath.startsWith('http://') || filePath.startsWith('https://') || filePath.startsWith('file://') || filePath.startsWith('data:')) {
@@ -24,6 +27,25 @@
             return sanitized.startsWith('/') ? `file://${sanitized}` : `file:///${sanitized}`;
         }
 
+        function playTrackAtIndex(index) {
+            if (index < 0 || index >= queue.length) return;
+            currentIndex = index;
+            const track = queue[currentIndex];
+            const trackUrl = track.path || track.trackUrl;
+            if (trackUrl) {
+                player.src = formatUri(trackUrl);
+            }
+            currentMetadata = {
+                title: track.title || 'Unknown Song',
+                artist: track.artist || 'Unknown Artist',
+                cover: track.cover ? formatUri(track.cover) : 'images/album-cover-placeholder.jpg'
+            };
+            document.title = `${currentMetadata.title} - ${currentMetadata.artist}`;
+            player.play().catch(err => console.error("Audio playback error:", err));
+            sendStatus();
+        }
+
+        // Send active status update
         function sendStatus() {
             const statusPayload = {
                 currentTime: player.currentTime || 0,
@@ -37,38 +59,62 @@
             ipcRenderer.send('send-audio-status', statusPayload);
         }
 
+        // Listen for play/pause commands
         ipcRenderer.on('receive-audio-command', (event, data) => {
             if (data.action === 'play') {
-                if (data.trackUrl) {
-                    player.src = formatUri(data.trackUrl);
+                if (data.queue && Array.isArray(data.queue)) {
+                    queue = data.queue;
+                    currentIndex = data.index !== undefined ? data.index : 0;
+                    playTrackAtIndex(currentIndex);
+                } else {
+                    queue = [{
+                        path: data.trackUrl,
+                        title: data.title,
+                        artist: data.artist,
+                        cover: data.cover
+                    }];
+                    currentIndex = 0;
+                    playTrackAtIndex(0);
                 }
-
-                currentMetadata = {
-                    title: data.title || 'Unknown Song',
-                    artist: data.artist || 'Unknown Artist',
-                    cover: data.cover ? formatUri(data.cover) : 'images/album-cover-placeholder.jpg'
-                };
-
-                document.title = `${currentMetadata.title} - ${currentMetadata.artist}`;
-                
-                player.play().catch(err => console.error("Audio playback error:", err));
-                sendStatus();
             } else if (data.action === 'pause') {
                 player.pause();
                 sendStatus();
             } else if (data.action === 'resume') {
                 player.play().catch(err => console.error("Audio resume error:", err));
                 sendStatus();
+            } else if (data.action === 'toggle') {
+                if (player.paused) {
+                    player.play().catch(err => console.error("Audio resume error:", err));
+                } else {
+                    player.pause();
+                }
+                sendStatus();
+            } else if (data.action === 'next') {
+                if (queue.length > 0 && currentIndex < queue.length - 1) {
+                    playTrackAtIndex(currentIndex + 1);
+                }
+            } else if (data.action === 'prev') {
+                if (player.currentTime > 3) {
+                    player.currentTime = 0;
+                } else if (queue.length > 0 && currentIndex > 0) {
+                    playTrackAtIndex(currentIndex - 1);
+                }
             }
         });
 
+        // Continuously send progress updates while playing
         player.addEventListener('timeupdate', sendStatus);
 
         player.addEventListener('ended', () => {
-            document.title = 'Big Screen Launcher';
-            ipcRenderer.send('send-audio-status', { ended: true });
+            if (queue.length > 0 && currentIndex < queue.length - 1) {
+                playTrackAtIndex(currentIndex + 1);
+            } else {
+                document.title = 'Big Screen Launcher';
+                ipcRenderer.send('send-audio-status', { ended: true });
+            }
         });
 
+        // Respond immediately when a UI page requests state
         ipcRenderer.on('request-audio-status', () => {
             sendStatus();
         });

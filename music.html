@@ -65,7 +65,7 @@
                         <h1 style="text-indent:25px; margin-bottom: 0;">Music Player</h1>
                         <h3 id="plst-title">Playlist Title</h3>
                     </div>
-                    <div style="margin-top: 25px; justify-content: right; justify-items: right;">
+                    <div style="margin-top: 25px; justify-content: right; justify-items: right; max-width: 60%;">
                         <h2 id="miniplayer-title" style="font-weight: 400; margin-bottom: 2px;">Song Title</h2>
                         <p id="miniplayer-artist" style="font-weight: 300; margin-top: 0; color: #aaa;">Song Artist</p>
                         <p id="miniplayer-time" style="color: #aaa;">0:00 / 3:30</p>
@@ -73,8 +73,15 @@
                         <div id="miniplayer-img-container">
                             <img id="miniplayer-img" src="images/album-cover-placeholder.jpg">
                         </div>
+                        <div id="song-controls">
+                            <img id="sngctrl-prev" src="svg/music/play-track-prev.svg">
+                            <img id="sngctrl-play-pause" src="svg/music/play-pause.svg">
+                            <img id="sngctrl-next" src="svg/music/play-track-next.svg">
+                        </div>
                     </div>
                 </div>
+
+                <!-- music actions/content -->
                 <button id="make-playlist" style="margin-left: 25px;" class="preferable-button">Make Playlist</button>
                 <button id="add-songs" style="display: none; margin-left: 25px;" class="preferable-button">Add Songs</button>
                 <div class="music-list">
