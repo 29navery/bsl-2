@@ -698,6 +698,10 @@ img.grid-item {
     flex-direction: column;
     padding: 20px 50px; 
     gap: 5px;
+    max-width: 650px;
+    justify-self: center;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 /* da funky playlist */

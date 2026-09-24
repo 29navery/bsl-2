@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <title>Big Screen Launcher</title>
     <script>
         const { ipcRenderer } = require('electron');
         
@@ -11,17 +12,18 @@
             cover: 'images/album-cover-placeholder.jpg'
         };
 
-        // Convert file paths to proper file:/// URIs
         function formatUri(filePath) {
             if (!filePath) return '';
             if (filePath.startsWith('http://') || filePath.startsWith('https://') || filePath.startsWith('file://') || filePath.startsWith('data:')) {
+                return filePath;
+            }
+            if (!filePath.includes(':') && !filePath.startsWith('/') && !filePath.startsWith('\\')) {
                 return filePath;
             }
             const sanitized = filePath.replace(/\\/g, '/');
             return sanitized.startsWith('/') ? `file://${sanitized}` : `file:///${sanitized}`;
         }
 
-        // Send active playback state and metadata back to UI
         function sendStatus() {
             const statusPayload = {
                 currentTime: player.currentTime || 0,
@@ -32,14 +34,10 @@
                 cover: currentMetadata.cover
             };
 
-            console.log("background-player sending status:", statusPayload);
             ipcRenderer.send('send-audio-status', statusPayload);
         }
 
-        // Listen for play/pause commands
         ipcRenderer.on('receive-audio-command', (event, data) => {
-            console.log("background-player received command:", data);
-
             if (data.action === 'play') {
                 if (data.trackUrl) {
                     player.src = formatUri(data.trackUrl);
@@ -50,6 +48,8 @@
                     artist: data.artist || 'Unknown Artist',
                     cover: data.cover ? formatUri(data.cover) : 'images/album-cover-placeholder.jpg'
                 };
+
+                document.title = `${currentMetadata.title} - ${currentMetadata.artist}`;
                 
                 player.play().catch(err => console.error("Audio playback error:", err));
                 sendStatus();
@@ -62,16 +62,14 @@
             }
         });
 
-        // Send position updates while playing
         player.addEventListener('timeupdate', sendStatus);
 
         player.addEventListener('ended', () => {
+            document.title = 'Big Screen Launcher';
             ipcRenderer.send('send-audio-status', { ended: true });
         });
 
-        // Respond immediately when a UI page asks for current status
         ipcRenderer.on('request-audio-status', () => {
-            console.log("background-player received request-audio-status! Replying...");
             sendStatus();
         });
     </script>

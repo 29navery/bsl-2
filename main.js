@@ -3,8 +3,9 @@ const { app, BrowserWindow, ipcMain, Tray, Menu, dialog, shell, session } = requ
 const fs = require('fs');
 const path = require('path');
 
-// trey & window
-let mainWindow
+// tray & window
+let mainWindow;
+let audioWindow;
 let tray = null;
 let isQuitting = false;
 
@@ -33,19 +34,22 @@ const createWindow = () => {
             event.preventDefault();
             mainWindow.hide();
         }
-    })
+    });
 
     mainWindow.loadFile('index.html');
-
-    // for the testingz
-    // mainWindow.webContents.openDevTools();
 };
 
 app.whenReady().then(() => {
+    app.setName('Big Screen Launcher');
+    if (process.platform === 'win32') {
+        app.setAppUserModelId('Big Screen Launcher');
+    }
+
     createWindow();
 
     audioWindow = new BrowserWindow({
         show: false,
+        title: 'Big Screen Launcher',
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,
@@ -55,16 +59,20 @@ app.whenReady().then(() => {
     audioWindow.loadFile('background-audio.html');
 
     ipcMain.on('send-audio-command', (event, commandData) => {
-        if (audioWindow) {
+        if (audioWindow && !audioWindow.isDestroyed()) {
             audioWindow.webContents.send('receive-audio-command', commandData);
-            console.log('sent audio command.')
         }
     });
 
     ipcMain.on('request-audio-status', () => {
-        if (audioWindow) {
+        if (audioWindow && !audioWindow.isDestroyed()) {
             audioWindow.webContents.send('request-audio-status');
-            console.log('sent audio status.')
+        }
+    });
+
+    ipcMain.on('send-audio-status', (event, statusData) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('receive-audio-status', statusData);
         }
     });
 
@@ -73,15 +81,15 @@ app.whenReady().then(() => {
     const contextMenu = Menu.buildFromTemplate([
         {
             label: 'Library',
-            click: () => {mainWindow.show(); mainWindow.focus(); mainWindow.loadFile('index.html');}
+            click: () => { mainWindow.show(); mainWindow.focus(); mainWindow.loadFile('index.html'); }
         },
         {
             label: 'Downloads',
-            click: () => {mainWindow.show(); mainWindow.focus(); mainWindow.loadFile('downloads.html');}
+            click: () => { mainWindow.show(); mainWindow.focus(); mainWindow.loadFile('downloads.html'); }
         },
         {
             label: 'Settings',
-            click: () => {mainWindow.show(); mainWindow.focus(); mainWindow.loadFile('settings.html');}
+            click: () => { mainWindow.show(); mainWindow.focus(); mainWindow.loadFile('settings.html'); }
         },
         { type: 'separator' },
         {
@@ -98,7 +106,7 @@ app.whenReady().then(() => {
 
     tray.on('click', () => {
         if (mainWindow.isVisible()) mainWindow.hide(); else mainWindow.show();
-    })
+    });
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {
@@ -113,56 +121,39 @@ app.on('window-all-closed', () => {
     }
 });
 
-// making the shortcuts work
+// Shortcuts & Dialog Handlers
 ipcMain.handle('dialog:open-game-file', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
         title: 'Select Game Executable',
         properties: ['openFile'],
-        filters: [
-            { name: 'Executables & Shortcuts', extensions: ['exe', 'lnk', 'url'] }
-        ]
+        filters: [{ name: 'Executables & Shortcuts', extensions: ['exe', 'lnk', 'url'] }]
     });
 
-    if (canceled) {
-        return null;
-    } else {
-        return filePaths[0];
-    }
+    return canceled ? null : filePaths[0];
 });
 
-// opening browser links
 ipcMain.handle('open-external-link', async (event, url) => {
     await shell.openExternal(url);
 });
 
-// get the documents folderrr
 ipcMain.handle('get-documents-path', () => {
     return app.getPath('documents');
 });
 
-// file dialog for music
 ipcMain.handle('open-music-dialog', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
         title: 'Select Audio Files',
         properties: ['openFile', 'multiSelections'],
-        filters: [
-            { name: 'Audio Files', extensions: ['mp3', 'wav', 'ogg', 'flac', 'm4a'] }
-        ]
+        filters: [{ name: 'Audio Files', extensions: ['mp3', 'wav', 'ogg', 'flac', 'm4a'] }]
     });
 
-    if (canceled) {
-        return [];
-    } else {
-        return filePaths;
-    }
+    return canceled ? [] : filePaths;
 });
 
-// getting data path
 ipcMain.handle('get-user-data-path', () => {
     return app.getPath('userData');
 });
 
-// app version handler
 let appVersion = '26.0';
 try {
     const versionPath = path.join(__dirname, 'appversion.txt');
@@ -171,24 +162,19 @@ try {
     console.log("Could not read local version file:", err);
 }
 
-ipcMain.handle('get-app-version', () => {
-    return appVersion;
-});
+ipcMain.handle('get-app-version', () => appVersion);
 
-// saving userdata
+// User Data & Game Management
 const gamesDir = path.join(app.getPath('documents'), 'Big Screen Launcher', 'Games');
-
 if (!fs.existsSync(gamesDir)) {
     fs.mkdirSync(gamesDir, { recursive: true });
 }
-
 const gamesFilePath = path.join(gamesDir, '.games.json');
 
 ipcMain.handle('load-games', () => {
     try {
         if (fs.existsSync(gamesFilePath)) {
-            const data = fs.readFileSync(gamesFilePath, 'utf8');
-            return JSON.parse(data);
+            return JSON.parse(fs.readFileSync(gamesFilePath, 'utf8'));
         }
     } catch (err) {
         console.error("Could not load games file:", err);
@@ -207,16 +193,12 @@ ipcMain.handle('save-games', (event, gamesArray) => {
 });
 
 const { execFile } = require('child_process');
-
 ipcMain.handle('launch-game-process', async (event, gamePath) => {
     execFile(gamePath, (error) => {
-        if (error) {
-            console.error('Failed to launch game:', error);
-        }
+        if (error) console.error('Failed to launch game:', error);
     });
 });
 
-// saving settings
 const settingsFilePath = path.join(app.getPath('userData'), 'settings.json');
 
 ipcMain.handle('load-settings', () => {
@@ -240,20 +222,19 @@ ipcMain.handle('save-settings', (event, settingsData) => {
     }
 });
 
-// fetching steamgriddb grid art
 const DEFAULT_API_KEY = '9d1906739a2fb8b80908934fa3529734';
 function getApiKey() {
-    const settings = JSON.parse(fs.readFileSync(settingsFilePath, 'utf8'));
-    if (settings.apiKey) return settings.apiKey; else return DEFAULT_API_KEY;
+    if (fs.existsSync(settingsFilePath)) {
+        const settings = JSON.parse(fs.readFileSync(settingsFilePath, 'utf8'));
+        if (settings.apiKey) return settings.apiKey;
+    }
+    return DEFAULT_API_KEY;
 }
 
 ipcMain.handle('fetch-game-art', async (event, gameName) => {
     try {
-        if (!fs.existsSync(settingsFilePath)) return null;
-        let apiKey = getApiKey()
-
+        let apiKey = getApiKey();
         const headers = { 'Authorization': `Bearer ${apiKey}` };
-
         const searchRes = await fetch(`https://www.steamgriddb.com/api/v2/search/autocomplete/${encodeURIComponent(gameName)}`, { headers });
         const searchData = await searchRes.json();
         
@@ -272,14 +253,10 @@ ipcMain.handle('fetch-game-art', async (event, gameName) => {
     return null;
 });
 
-// fetching steamgriddb hero art
 ipcMain.handle('fetch-game-hero', async (event, gameName) => {
     try {
-        if (!fs.existsSync(settingsFilePath)) return null;
-        let apiKey = getApiKey()
-
+        let apiKey = getApiKey();
         const headers = { 'Authorization': `Bearer ${apiKey}` };
-
         const searchRes = await fetch(`https://www.steamgriddb.com/api/v2/search/autocomplete/${encodeURIComponent(gameName)}`, { headers });
         const searchData = await searchRes.json();
         
@@ -298,14 +275,10 @@ ipcMain.handle('fetch-game-hero', async (event, gameName) => {
     return null;
 });
 
-// fetching steamgriddb logo art
 ipcMain.handle('fetch-game-logo', async (event, gameName) => {
     try {
-        if (!fs.existsSync(settingsFilePath)) return null;
-        let apiKey = getApiKey()
-
+        let apiKey = getApiKey();
         const headers = { 'Authorization': `Bearer ${apiKey}` };
-
         const searchRes = await fetch(`https://www.steamgriddb.com/api/v2/search/autocomplete/${encodeURIComponent(gameName)}`, { headers });
         const searchData = await searchRes.json();
         
@@ -324,16 +297,12 @@ ipcMain.handle('fetch-game-logo', async (event, gameName) => {
     return null;
 });
 
-// clear the games.json cache
 ipcMain.handle('clear-games-cache', async () => {
     try {
-
         await session.defaultSession.clearCache();
         await session.defaultSession.clearStorageData({
             storages: ['shadercache', 'serviceworkers', 'indexdb']
         });
-        console.log('Browser cache cleared successfully.');
-
         return true;
     } catch (err) {
         console.error("Failed to clear caches:", err);
@@ -341,17 +310,13 @@ ipcMain.handle('clear-games-cache', async () => {
     }
 });
 
-// remove games from library
 ipcMain.handle('remove-game', async (event, index) => {
     try {
         let savedGames = [];
         if (fs.existsSync(gamesFilePath)) {
             savedGames = JSON.parse(fs.readFileSync(gamesFilePath, 'utf8'));
         }
-        
-        // Remove the game at the selected index
         savedGames.splice(index, 1);
-        
         fs.writeFileSync(gamesFilePath, JSON.stringify(savedGames, null, 2), 'utf8');
         return true;
     } catch (err) {
@@ -360,9 +325,7 @@ ipcMain.handle('remove-game', async (event, index) => {
     }
 });
 
-// song metadata
 const { parseFile } = require('music-metadata');
-
 ipcMain.handle('extract-mp3-metadata', async (event, filePath) => {
     try {
         const metadata = await parseFile(filePath);
