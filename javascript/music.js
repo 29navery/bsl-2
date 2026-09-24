@@ -98,23 +98,28 @@ let currentAudio = null;
 function playSong(song) {
     if (currentAudio) {
         currentAudio.pause();
+        currentAudio = null;
     }
 
     currentAudio = new Audio(song.path);
     
-    const timeDisplay = document.getElementById('current-time');
-    
     currentAudio.addEventListener('timeupdate', () => {
+        const timeDisplay = document.getElementById('miniplayer-time');
         if (timeDisplay) {
-            timeDisplay.textContent = formatDuration(currentAudio.currentTime);
+            const currentFormatted = formatDuration(currentAudio.currentTime);
+            timeDisplay.textContent = `${currentFormatted} / ${song.length}`;
         }
     });
 
-    currentAudio.play();
+    currentAudio.play().catch(err => console.log("Playback error:", err));
 
-    document.getElementById('miniplayer-title').textContent = song.title;
-    document.getElementById('miniplayer-artist').textContent = song.artist;
-    document.getElementById('miniplayer-img').src = song.cover;
+    const titleEl = document.getElementById('miniplayer-title');
+    const artistEl = document.getElementById('miniplayer-artist');
+    const imgEl = document.getElementById('miniplayer-img');
+
+    if (titleEl) titleEl.textContent = song.title;
+    if (artistEl) artistEl.textContent = song.artist;
+    if (imgEl) imgEl.src = song.cover;
 }
 
 // context menu
