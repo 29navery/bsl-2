@@ -1,4 +1,3 @@
-const { ipcRenderer } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
@@ -71,7 +70,7 @@ function promptForDeletion(deletee) {
 
     return new Promise((resolve) => {
         promptContainer.style.setProperty('display', 'block');
-        promptText.textContent = 'Deleting ' + deletee + ' cannot be undone'
+        promptText.textContent = 'Deleting ' + deletee + ' cannot be undone';
 
         yesButton.onclick = () => {
             promptContainer.style.setProperty('display', 'none');
@@ -84,7 +83,7 @@ function promptForDeletion(deletee) {
     });
 }
 
-// make duration look nice
+// funky duration
 function formatDuration(seconds) {
     if (isNaN(seconds)) return "0:00";
     const mins = Math.floor(seconds / 60);
@@ -92,37 +91,27 @@ function formatDuration(seconds) {
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 }
 
-// play da music
-let currentAudio = null;
-
-function playSong(song) {
-    if (currentAudio) {
-        currentAudio.pause();
-        currentAudio = null;
-    }
-
-    currentAudio = new Audio(song.path);
-    
-    currentAudio.addEventListener('timeupdate', () => {
-        const timeDisplay = document.getElementById('miniplayer-time');
-        if (timeDisplay) {
-            const currentFormatted = formatDuration(currentAudio.currentTime);
-            timeDisplay.textContent = `${currentFormatted} / ${song.length}`;
-        }
+// to da background music
+function playSong(filePath, title, artist, cover) {
+    ipcRenderer.send('send-audio-command', {
+        action: 'play',
+        trackUrl: filePath,
+        title: title || 'Unknown Song',
+        artist: artist || 'Unknown Artist',
+        cover: cover || 'images/album-cover-placeholder.jpg'
     });
 
-    currentAudio.play().catch(err => console.log("Playback error:", err));
-
-    const titleEl = document.getElementById('miniplayer-title');
-    const artistEl = document.getElementById('miniplayer-artist');
-    const imgEl = document.getElementById('miniplayer-img');
-
-    if (titleEl) titleEl.textContent = song.title;
-    if (artistEl) artistEl.textContent = song.artist;
-    if (imgEl) imgEl.src = song.cover;
+    const imgDisplay = document.getElementById('miniplayer-img');
+    if (imgDisplay && cover) {
+        imgDisplay.src = cover;
+    }
 }
 
-// context menu
+function pauseSong() {
+    ipcRenderer.send('send-audio-command', { action: 'pause' });
+}
+
+// context menu setup
 let activeSongPath = null;
 let activePlaylistName = null;
 const contextMenu = document.getElementById('custom-context-menu');
@@ -163,54 +152,43 @@ document.addEventListener('click', () => {
     if (contextMenu) contextMenu.style.display = 'none';
 });
 
-document.getElementById('menu-remove').addEventListener('click', async () => {
-    let confirmed = true;
+const menuRemoveBtn = document.getElementById('menu-remove');
+if (menuRemoveBtn) {
+    menuRemoveBtn.addEventListener('click', async () => {
+        let confirmed = true;
 
-    if (activePlaylistName) {
-        confirmed = await promptForDeletion(activePlaylistName);
-    }
+        if (activePlaylistName) {
+            confirmed = await promptForDeletion(activePlaylistName);
+        }
 
-    if (!confirmed) return;
+        if (!confirmed) return;
 
-    const data = loadMusicData();
+        const data = loadMusicData();
 
-    if (activeSongPath && currentPlaylist && data.playlists[currentPlaylist]) {
-        data.playlists[currentPlaylist].songs = data.playlists[currentPlaylist].songs.filter(
-            s => s.path !== activeSongPath
-        );
-        saveMusicData(data);
-    } else if (activePlaylistName && data.playlists[activePlaylistName]) {
-        delete data.playlists[activePlaylistName];
-        saveMusicData(data);
-    }
+        if (activeSongPath && currentPlaylist && data.playlists[currentPlaylist]) {
+            data.playlists[currentPlaylist].songs = data.playlists[currentPlaylist].songs.filter(
+                s => s.path !== activeSongPath
+            );
+            saveMusicData(data);
+        } else if (activePlaylistName && data.playlists[activePlaylistName]) {
+            delete data.playlists[activePlaylistName];
+            saveMusicData(data);
+        }
 
-    if (contextMenu) contextMenu.style.display = 'none';
-    activeSongPath = null;
-    activePlaylistName = null;
+        if (contextMenu) contextMenu.style.display = 'none';
+        activeSongPath = null;
+        activePlaylistName = null;
 
-    renderView();
-});
+        renderView();
+    });
+}
 
-// make the funky name
+// folder sanitizer
 function sanitizeFolder(name) {
     return name ? name.replace(/[<>:"/\\|?*]/g, '_').trim() : null;
 }
 
-// get audio metadata
-function getAudioMetadata(filePath) {
-    return new Promise((resolve) => {
-        const audio = document.createElement('audio');
-        audio.src = filePath;
-        audio.onloadedmetadata = () => {
-            resolve({ duration: audio.duration });
-        };
-        audio.onerror = () => {
-            resolve({ duration: 0 });
-        };
-    });
-}
-
-// add to current playlist
+// Add songs to playlist
 async function addSongsToCurrentPlaylist() {
     if (!currentPlaylist) return;
 
@@ -298,7 +276,7 @@ async function addSongsToCurrentPlaylist() {
     renderView();
 }
 
-// big boy render daddy
+// big daddy render boi
 async function renderView() {
     const plstTitle = document.getElementById('plst-title');
     const contentArea = document.getElementById('content');
@@ -307,11 +285,11 @@ async function renderView() {
     const addSongsBtn = document.getElementById('add-songs');
 
     if (currentPlaylist) {
-        makePlaylistBtn.style.display = 'none';
-        addSongsBtn.style.display = 'inline-block';
+        if (makePlaylistBtn) makePlaylistBtn.style.display = 'none';
+        if (addSongsBtn) addSongsBtn.style.display = 'inline-block';
     } else {
-        makePlaylistBtn.style.display = 'inline-block';
-        addSongsBtn.style.display = 'none';
+        if (makePlaylistBtn) makePlaylistBtn.style.display = 'inline-block';
+        if (addSongsBtn) addSongsBtn.style.display = 'none';
     }
 
     const existingList = contentArea.querySelector('.music-list');
@@ -327,8 +305,10 @@ async function renderView() {
         const backBtn = document.createElement('button');
         backBtn.classList.add('preferable-button');
         backBtn.style.marginBottom = '15px';
-        plstTitle.style.setProperty('display', 'block');
-        plstTitle.textContent = currentPlaylist;
+        if (plstTitle) {
+            plstTitle.style.setProperty('display', 'block');
+            plstTitle.textContent = currentPlaylist;
+        }
         backBtn.textContent = `Return`;
         backBtn.onclick = () => {
             currentPlaylist = null;
@@ -362,15 +342,15 @@ async function renderView() {
             songItem.dataset.songPath = song.path;
 
             musicList.appendChild(songItem);
+            
             songItem.addEventListener('click', () => {
-                playSong(song);
+                playSong(song.path, song.title, song.artist, song.cover);
             });
         });
 
-    } 
-    else {
+    } else {
         const playlistNames = Object.keys(data.playlists);
-        plstTitle.style.setProperty('display', 'none');
+        if (plstTitle) plstTitle.style.setProperty('display', 'none');
 
         if (playlistNames.length === 0) {
             const emptyMsg = document.createElement('p');
@@ -401,16 +381,22 @@ async function startApp() {
     
     renderView();
 
-    document.getElementById('make-playlist').addEventListener('click', async () => {
-        const name = await promptForPlaylistName();
-        if (name) {
-            createPlaylist(name);
-        }
-    });
+    const makePlaylistBtn = document.getElementById('make-playlist');
+    if (makePlaylistBtn) {
+        makePlaylistBtn.addEventListener('click', async () => {
+            const name = await promptForPlaylistName();
+            if (name) {
+                createPlaylist(name);
+            }
+        });
+    }
 
-    document.getElementById('add-songs').addEventListener('click', async () => {
-        await addSongsToCurrentPlaylist();
-    });
+    const addSongsBtn = document.getElementById('add-songs');
+    if (addSongsBtn) {
+        addSongsBtn.addEventListener('click', async () => {
+            await addSongsToCurrentPlaylist();
+        });
+    }
 }
 
 startApp();

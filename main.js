@@ -44,6 +44,30 @@ const createWindow = () => {
 app.whenReady().then(() => {
     createWindow();
 
+    audioWindow = new BrowserWindow({
+        show: false,
+        webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: false,
+            sandbox: false
+        }
+    });
+    audioWindow.loadFile('background-audio.html');
+
+    ipcMain.on('send-audio-command', (event, commandData) => {
+        if (audioWindow) {
+            audioWindow.webContents.send('receive-audio-command', commandData);
+            console.log('sent audio command.')
+        }
+    });
+
+    ipcMain.on('request-audio-status', () => {
+        if (audioWindow) {
+            audioWindow.webContents.send('request-audio-status');
+            console.log('sent audio status.')
+        }
+    });
+
     tray = new Tray(path.join(__dirname, 'assets/app-icon.ico'));
 
     const contextMenu = Menu.buildFromTemplate([

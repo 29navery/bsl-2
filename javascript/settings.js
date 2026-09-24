@@ -1,6 +1,5 @@
 const fs = require('fs');
 const path = require('path');
-const { ipcRenderer } = require('electron');
 
 // display directories
 const directoriesDiv = document.getElementById("directory-list");

@@ -1,4 +1,3 @@
-const { ipcRenderer } = require('electron');
 const addGameButton = document.getElementById('add-game-btn');
 
 async function launchGame(index) {

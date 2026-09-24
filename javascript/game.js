@@ -1,5 +1,3 @@
-const { ipcRenderer } = require('electron');
-
 async function initGamePage() {
     const urlParams = new URLSearchParams(window.location.search);
     const gameIndex = urlParams.get('index');

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script>
+        const { ipcRenderer } = require('electron');
+        
+        const player = new Audio();
+        let currentMetadata = {
+            title: 'Song Title',
+            artist: 'Song Artist',
+            cover: 'images/album-cover-placeholder.jpg'
+        };
+
+        // Convert file paths to proper file:/// URIs
+        function formatUri(filePath) {
+            if (!filePath) return '';
+            if (filePath.startsWith('http://') || filePath.startsWith('https://') || filePath.startsWith('file://') || filePath.startsWith('data:')) {
+                return filePath;
+            }
+            const sanitized = filePath.replace(/\\/g, '/');
+            return sanitized.startsWith('/') ? `file://${sanitized}` : `file:///${sanitized}`;
+        }
+
+        // Send active playback state and metadata back to UI
+        function sendStatus() {
+            const statusPayload = {
+                currentTime: player.currentTime || 0,
+                duration: player.duration || 0,
+                isPlaying: !player.paused,
+                title: currentMetadata.title,
+                artist: currentMetadata.artist,
+                cover: currentMetadata.cover
+            };
+
+            console.log("background-player sending status:", statusPayload);
+            ipcRenderer.send('send-audio-status', statusPayload);
+        }
+
+        // Listen for play/pause commands
+        ipcRenderer.on('receive-audio-command', (event, data) => {
+            console.log("background-player received command:", data);
+
+            if (data.action === 'play') {
+                if (data.trackUrl) {
+                    player.src = formatUri(data.trackUrl);
+                }
+
+                currentMetadata = {
+                    title: data.title || 'Unknown Song',
+                    artist: data.artist || 'Unknown Artist',
+                    cover: data.cover ? formatUri(data.cover) : 'images/album-cover-placeholder.jpg'
+                };
+                
+                player.play().catch(err => console.error("Audio playback error:", err));
+                sendStatus();
+            } else if (data.action === 'pause') {
+                player.pause();
+                sendStatus();
+            } else if (data.action === 'resume') {
+                player.play().catch(err => console.error("Audio resume error:", err));
+                sendStatus();
+            }
+        });
+
+        // Send position updates while playing
+        player.addEventListener('timeupdate', sendStatus);
+
+        player.addEventListener('ended', () => {
+            ipcRenderer.send('send-audio-status', { ended: true });
+        });
+
+        // Respond immediately when a UI page asks for current status
+        ipcRenderer.on('request-audio-status', () => {
+            console.log("background-player received request-audio-status! Replying...");
+            sendStatus();
+        });
+    </script>
+</head>
+<body></body>
+</html>
