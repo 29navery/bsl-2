@@ -14,7 +14,6 @@
             cover: 'images/album-cover-placeholder.jpg'
         };
 
-        // Convert full system file paths to proper file:/// URIs, leaving relative/data URIs intact
         function formatUri(filePath) {
             if (!filePath) return '';
             if (filePath.startsWith('http://') || filePath.startsWith('https://') || filePath.startsWith('file://') || filePath.startsWith('data:')) {
@@ -25,6 +24,37 @@
             }
             const sanitized = filePath.replace(/\\/g, '/');
             return sanitized.startsWith('/') ? `file://${sanitized}` : `file:///${sanitized}`;
+        }
+
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.setActionHandler('play', () => {
+                player.play().catch(err => console.error("Audio resume error:", err));
+                sendStatus();
+            });
+            navigator.mediaSession.setActionHandler('pause', () => {
+                player.pause();
+                sendStatus();
+            });
+            navigator.mediaSession.setActionHandler('previoustrack', () => {
+                handlePrev();
+            });
+            navigator.mediaSession.setActionHandler('nexttrack', () => {
+                handleNext();
+            });
+        }
+
+        function handleNext() {
+            if (queue.length > 0 && currentIndex < queue.length - 1) {
+                playTrackAtIndex(currentIndex + 1);
+            }
+        }
+
+        function handlePrev() {
+            if (player.currentTime > 3) {
+                player.currentTime = 0;
+            } else if (queue.length > 0 && currentIndex > 0) {
+                playTrackAtIndex(currentIndex - 1);
+            }
         }
 
         function playTrackAtIndex(index) {
@@ -41,16 +71,33 @@
                 cover: track.cover ? formatUri(track.cover) : 'images/album-cover-placeholder.jpg'
             };
             document.title = `${currentMetadata.title} - ${currentMetadata.artist}`;
+
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: currentMetadata.title,
+                    artist: currentMetadata.artist,
+                    artwork: [
+                        { src: formatUri(currentMetadata.cover), sizes: '512x512', type: 'image/png' }
+                    ]
+                });
+            }
+
             player.play().catch(err => console.error("Audio playback error:", err));
             sendStatus();
         }
 
         // Send active status update
         function sendStatus() {
+            const isPlaying = !player.paused;
+
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+            }
+
             const statusPayload = {
                 currentTime: player.currentTime || 0,
                 duration: player.duration || 0,
-                isPlaying: !player.paused,
+                isPlaying: isPlaying,
                 title: currentMetadata.title,
                 artist: currentMetadata.artist,
                 cover: currentMetadata.cover
@@ -59,7 +106,6 @@
             ipcRenderer.send('send-audio-status', statusPayload);
         }
 
-        // Listen for play/pause commands
         ipcRenderer.on('receive-audio-command', (event, data) => {
             if (data.action === 'play') {
                 if (data.queue && Array.isArray(data.queue)) {
@@ -90,19 +136,12 @@
                 }
                 sendStatus();
             } else if (data.action === 'next') {
-                if (queue.length > 0 && currentIndex < queue.length - 1) {
-                    playTrackAtIndex(currentIndex + 1);
-                }
+                handleNext();
             } else if (data.action === 'prev') {
-                if (player.currentTime > 3) {
-                    player.currentTime = 0;
-                } else if (queue.length > 0 && currentIndex > 0) {
-                    playTrackAtIndex(currentIndex - 1);
-                }
+                handlePrev();
             }
         });
 
-        // Continuously send progress updates while playing
         player.addEventListener('timeupdate', sendStatus);
 
         player.addEventListener('ended', () => {
@@ -110,11 +149,13 @@
                 playTrackAtIndex(currentIndex + 1);
             } else {
                 document.title = 'Big Screen Launcher';
+                if ('mediaSession' in navigator) {
+                    navigator.mediaSession.playbackState = 'none';
+                }
                 ipcRenderer.send('send-audio-status', { ended: true });
             }
         });
 
-        // Respond immediately when a UI page requests state
         ipcRenderer.on('request-audio-status', () => {
             sendStatus();
         });
