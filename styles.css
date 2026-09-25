@@ -24,6 +24,8 @@
     /* music player */
     --playlist-button-color: #131314;
     --playlist-button-color-selected: #353537;
+
+    --scrollbar-width: 0px;
 }
 
 html {
@@ -102,23 +104,24 @@ a:hover {
 /*                   */
 
 ::-webkit-scrollbar {
-    width: 12px;
+    width: var(--scrollbar-width);
     height: 4px;
 }
 
 ::-webkit-scrollbar-track {
     margin-right: 4px;
-    background: #fff0;
+    background: transparent;
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #2a2a2a;
+    background: transparent;
     border-radius: 12px;
+    transition: all 200ms;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #a72;
+    background: var(--rail-button-color-selected);
 }
 
   /*               */
