@@ -235,7 +235,8 @@ function getApiKey() {
     return DEFAULT_API_KEY;
 }
 
-ipcMain.handle('fetch-game-art', async (event, gameName) => {
+// get the arts
+async function fetchGameArt(gameName) {
     try {
         let apiKey = getApiKey();
         const headers = { 'Authorization': `Bearer ${apiKey}` };
@@ -255,9 +256,9 @@ ipcMain.handle('fetch-game-art', async (event, gameName) => {
         console.error('Error connecting to SteamGridDB:', err);
     }
     return null;
-});
+}
 
-ipcMain.handle('fetch-game-hero', async (event, gameName) => {
+async function fetchGameHero(gameName) {
     try {
         let apiKey = getApiKey();
         const headers = { 'Authorization': `Bearer ${apiKey}` };
@@ -277,9 +278,9 @@ ipcMain.handle('fetch-game-hero', async (event, gameName) => {
         console.error('Error connecting to SteamGridDB for hero art:', err);
     }
     return null;
-});
+}
 
-ipcMain.handle('fetch-game-logo', async (event, gameName) => {
+async function fetchGameLogo(gameName) {
     try {
         let apiKey = getApiKey();
         const headers = { 'Authorization': `Bearer ${apiKey}` };
@@ -299,8 +300,13 @@ ipcMain.handle('fetch-game-logo', async (event, gameName) => {
         console.error('Error connecting to SteamGridDB for logo art:', err);
     }
     return null;
-});
+}
 
+ipcMain.handle('fetch-game-art', (event, gameName) => fetchGameArt(gameName));
+ipcMain.handle('fetch-game-hero', (event, gameName) => fetchGameHero(gameName));
+ipcMain.handle('fetch-game-logo', (event, gameName) => fetchGameLogo(gameName));
+
+// clear game list cache
 ipcMain.handle('clear-games-cache', async () => {
     try {
         await session.defaultSession.clearCache();
@@ -314,6 +320,7 @@ ipcMain.handle('clear-games-cache', async () => {
     }
 });
 
+// remove games
 ipcMain.handle('remove-game', async (event, index) => {
     try {
         let savedGames = [];
@@ -357,4 +364,164 @@ ipcMain.handle('extract-mp3-metadata', async (event, filePath) => {
         console.error("Failed to parse MP3 metadata:", err);
         return null;
     }
+});
+
+// download da shyt
+
+const https = require('https');
+const http = require('http');
+
+let activeDownloadReq = null;
+let activeDownloadStream = null;
+let activeDownloadPath = null;
+
+// start
+ipcMain.handle('start-download', async (event, { gameName, downloadUrl, exeName }) => {
+    const gamesDir = path.join(app.getPath('documents'), 'Big Screen Launcher', 'Games');
+    
+    const safeFolderName = gameName.replace(/[/\\?%*:|"<>]/g, '').trim();
+    const targetFolder = path.join(gamesDir, safeFolderName);
+
+    if (!fs.existsSync(targetFolder)) {
+        fs.mkdirSync(targetFolder, { recursive: true });
+    }
+
+    let fileName = exeName;
+    if (!fileName) {
+        const urlExtension = path.extname(new URL(downloadUrl).pathname) || '.exe';
+        fileName = `${safeFolderName}${urlExtension}`;
+    }
+
+    const filePath = path.join(targetFolder, fileName);
+    activeDownloadPath = filePath;
+
+    return new Promise((resolve, reject) => {
+        function requestFile(url) {
+            const protocol = url.startsWith('https') ? https : http;
+
+            const req = protocol.get(url, (res) => {
+                if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                    return requestFile(res.headers.location);
+                }
+
+                if (res.statusCode !== 200) {
+                    reject(`Server responded with status code: ${res.statusCode}`);
+                    return;
+                }
+
+                const totalBytes = parseInt(res.headers['content-length'] || '0', 10);
+                let receivedBytes = 0;
+                const startTime = Date.now();
+
+                const fileStream = fs.createWriteStream(filePath);
+                activeDownloadStream = fileStream;
+
+                res.on('data', (chunk) => {
+                    receivedBytes += chunk.length;
+                    fileStream.write(chunk);
+
+                    const elapsedSec = (Date.now() - startTime) / 1000;
+                    const speedBytesPerSec = elapsedSec > 0 ? receivedBytes / elapsedSec : 0;
+                    const remainingBytes = totalBytes - receivedBytes;
+                    const remainingSec = speedBytesPerSec > 0 ? Math.ceil(remainingBytes / speedBytesPerSec) : 0;
+
+                    const percent = totalBytes > 0 ? (receivedBytes / totalBytes) * 100 : 0;
+                    const transferredMB = (receivedBytes / (1024 * 1024)).toFixed(1);
+                    const totalMB = (totalBytes / (1024 * 1024)).toFixed(2);
+
+                    let etaStr = remainingSec < 60 
+                        ? `${remainingSec}s left` 
+                        : `${Math.floor(remainingSec / 60)}m ${remainingSec % 60}s left`;
+
+                    if (mainWindow && !mainWindow.isDestroyed()) {
+                        mainWindow.webContents.send('download-progress', {
+                            gameName,
+                            percent,
+                            transferredMB,
+                            totalMB,
+                            etaStr,
+                            status: 'downloading'
+                        });
+                    }
+                });
+
+                res.on('end', async () => {
+                    fileStream.end();
+                    activeDownloadReq = null;
+                    activeDownloadStream = null;
+
+                    const [art, hero, logo] = await Promise.all([
+                        fetchGameArt(gameName),
+                        fetchGameHero(gameName),
+                        fetchGameLogo(gameName)
+                    ]).catch(() => [null, null, null]);
+
+                    const newGame = {
+                        name: gameName,
+                        path: filePath,
+                        art: art || null,
+                        hero: hero || null,
+                        logo: logo || null
+                    };
+
+                    let savedGames = [];
+                    if (fs.existsSync(gamesFilePath)) {
+                        try {
+                            savedGames = JSON.parse(fs.readFileSync(gamesFilePath, 'utf8'));
+                        } catch (err) {
+                            console.error("Error reading games file:", err);
+                        }
+                    }
+
+                    if (!savedGames.some(g => g.title === gameName)) {
+                        savedGames.push(newGame);
+                        fs.writeFileSync(gamesFilePath, JSON.stringify(savedGames, null, 2), 'utf8');
+                    }
+
+                    if (mainWindow && !mainWindow.isDestroyed()) {
+                        mainWindow.webContents.send('download-progress', {
+                            gameName,
+                            percent: 100,
+                            status: 'completed'
+                        });
+                        mainWindow.webContents.send('library-updated');
+                    }
+                    resolve({ success: true, filePath });
+                });
+
+                res.on('error', (err) => {
+                    fileStream.close();
+                    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+                    reject(err.message);
+                });
+            });
+
+            activeDownloadReq = req;
+            req.on('error', (err) => {
+                if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+                reject(err.message);
+            });
+        }
+
+        requestFile(downloadUrl);
+    });
+});
+
+// cancel
+ipcMain.handle('stop-download', () => {
+    if (activeDownloadReq) {
+        activeDownloadReq.destroy();
+        activeDownloadReq = null;
+    }
+    if (activeDownloadStream) {
+        activeDownloadStream.close();
+        activeDownloadStream = null;
+    }
+    if (activeDownloadPath && fs.existsSync(activeDownloadPath)) {
+        try { fs.unlinkSync(activeDownloadPath); } catch (e) {}
+    }
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('download-progress', { status: 'cancelled' });
+    }
+    return true;
 });

@@ -152,6 +152,10 @@ function muteHexColor(hex, alpha = 0.5) {
                 });
             }
 
+            newItem.addEventListener('click', () => {
+                window.downloadGame(game.title, `https://tungstenball.org${game.download}`);
+            });
+
             newImg.style.setProperty("position", "absolute");
             newImg.style.setProperty("transform", "translateY(-6px)");
             newImg.setAttribute("src", `https://tungstenball.org${game.image}`);
@@ -180,3 +184,59 @@ if (refreshButton) {
         }
     });
 }
+
+(() => {
+    const banner = document.querySelector('.active-download-banner');
+    const title = banner ? banner.querySelector('h2') : null;
+    const statusText = banner ? banner.querySelector('p') : null;
+    const progressFill = document.querySelector('.download-bar-fill');
+    const stopBtn = document.getElementById('stop-download-button');
+
+    if (banner) banner.style.display = 'none';
+
+    window.downloadGame = async function(gameName, downloadUrl, exeName) {
+        if (banner) banner.style.display = 'block';
+        if (title) title.textContent = gameName;
+        if (statusText) statusText.textContent = 'Connecting...';
+        if (progressFill) progressFill.style.width = '0%';
+
+        try {
+            await ipcRenderer.invoke('start-download', {
+                gameName: gameName,
+                downloadUrl: downloadUrl,
+                exeName: exeName || `${gameName}.exe`
+            });
+        } catch (err) {
+            if (statusText) statusText.textContent = `Download failed: ${err}`;
+        }
+    };
+
+    if (stopBtn) {
+        stopBtn.addEventListener('click', async () => {
+            await ipcRenderer.invoke('stop-download');
+        });
+    }
+
+    ipcRenderer.on('download-progress', (event, data) => {
+        if (!banner) return;
+
+        if (data.status === 'downloading') {
+            banner.style.display = 'block';
+            if (title) title.textContent = data.gameName;
+            if (statusText) {
+                statusText.textContent = `Installing. ${data.transferredMB} MB / ${data.totalMB} MB — ${data.etaStr}`;
+            }
+            if (progressFill) {
+                progressFill.style.width = `${data.percent.toFixed(1)}%`;
+            }
+        } else if (data.status === 'completed') {
+            if (statusText) statusText.textContent = 'Download Complete! Added to Library.';
+            if (progressFill) progressFill.style.width = '100%';
+            setTimeout(() => {
+                banner.style.display = 'none';
+            }, 3000);
+        } else if (data.status === 'cancelled') {
+            banner.style.display = 'none';
+        }
+    });
+})();
