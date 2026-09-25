@@ -5,4 +5,4 @@ This game launcher features:
 - Downloading pre-installed games
 - Customizing your launcher experience
 - A built-in music player
--   Import your own songs!
+  - Import your own songs!
