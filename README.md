@@ -6,3 +6,5 @@ This game launcher features:
 - Customizing your launcher experience
 - A built-in music player
   - Import your own songs!
+
+Download official releases at [tungstenball.org](https://tungstenball.org/launcher)!
